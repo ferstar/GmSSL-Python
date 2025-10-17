@@ -49,7 +49,7 @@ jobs:
               ln -sf /usr/bin/cmake3 /usr/bin/cmake && \
               cd /workspace && \
               rm -rf build && mkdir build && cd build && \
-              cmake .. && \
+              cmake .. -DCMAKE_BUILD_TYPE=Release && \
               make -j\$(nproc) && \
               mkdir -p /artifacts/linux-x86_64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-x86_64/ && \
@@ -95,28 +95,20 @@ jobs:
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
-      - name: Build GmSSL in ARM64 Ubuntu container
+      - name: Build GmSSL in ARM64 manylinux container
         run: |
-          # Use Ubuntu 18.04 ARM64 (GLIBC 2.27) for good compatibility
-          # This ensures the library works on Ubuntu 18.04+, Debian 10+
+          # Use manylinux2014 (GLIBC 2.17) for maximum compatibility
           docker run --rm --platform linux/arm64 \
             -v $PWD/GmSSL:/workspace \
             -v $PWD/artifacts:/artifacts \
-            arm64v8/ubuntu:18.04 \
+            quay.io/pypa/manylinux2014_aarch64 \
             bash -c "
-              # Install build dependencies
-              export DEBIAN_FRONTEND=noninteractive && \
-              apt-get update && \
-              apt-get install -y cmake gcc g++ make file binutils git && \
+              yum install -y gcc gcc-c++ make file binutils wget && \
               cmake --version && \
-
-              # Build GmSSL
               cd /workspace && \
               rm -rf build && mkdir build && cd build && \
-              cmake .. && \
+              cmake .. -DCMAKE_BUILD_TYPE=Release && \
               make -j\$(nproc) && \
-
-              # Copy and verify library
               mkdir -p /artifacts/linux-aarch64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-aarch64/ && \
               echo '=== Library info ===' && \
@@ -165,6 +157,7 @@ jobs:
           cd GmSSL
           mkdir build && cd build
           cmake .. \
+                   -DCMAKE_BUILD_TYPE=Release \
                    -DCMAKE_OSX_ARCHITECTURES=arm64 \
                    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           make -j$(sysctl -n hw.ncpu)
@@ -211,7 +204,9 @@ jobs:
         run: |
           cd GmSSL
           mkdir build && cd build
-          cmake .. -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+          cmake .. \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_OSX_ARCHITECTURES=x86_64 \
                    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           make -j$(sysctl -n hw.ncpu)
 
@@ -365,6 +360,25 @@ jobs:
           name: gmssl-linux-x86_64
           path: src/gmssl/_libs
 
+      - name: Rename Linux x86_64 library
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          mv src/gmssl/_libs/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.x86_64
+
+      - name: Download Linux x86_64 library (Ubuntu 22.04)
+        if: matrix.os == 'ubuntu-22.04'
+        uses: actions/download-artifact@v4
+        with:
+          name: gmssl-linux-x86_64
+          path: src/gmssl/_libs
+
+      - name: Rename Linux x86_64 library (Ubuntu 22.04)
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          mv src/gmssl/_libs/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.x86_64
+
       - name: Download macOS universal library
         if: matrix.os == 'macos-latest'
         uses: actions/download-artifact@v4
@@ -386,12 +400,16 @@ jobs:
           ls -lh src/gmssl/_libs/ || true
 
           # Verify library architecture and symbols
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ] || [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             echo "=== Linux library info ==="
-            file src/gmssl/_libs/libgmssl.so.3
-            ldd src/gmssl/_libs/libgmssl.so.3 || true
+            file src/gmssl/_libs/libgmssl.so.3.x86_64
+            ldd src/gmssl/_libs/libgmssl.so.3.x86_64 || true
+            echo "=== GLIBC requirement ==="
+            objdump -T src/gmssl/_libs/libgmssl.so.3.x86_64 | grep GLIBC | awk '{print $5}' | sort -Vu
+            echo "=== SM3 PBKDF2 symbol check ==="
+            nm -D src/gmssl/_libs/libgmssl.so.3.x86_64 | grep sm3_pbkdf2 || echo "WARNING: sm3_pbkdf2 not found"
             echo "=== SM9 symbols check ==="
-            nm -D src/gmssl/_libs/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
+            nm -D src/gmssl/_libs/libgmssl.so.3.x86_64 | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             echo "=== macOS library info ==="
             file src/gmssl/_libs/libgmssl.3.dylib
