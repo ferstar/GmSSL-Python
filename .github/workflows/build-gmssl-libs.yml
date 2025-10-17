@@ -48,9 +48,13 @@ jobs:
           mkdir -p artifacts/linux-x86_64
           cp GmSSL/build/bin/libgmssl.so.3 artifacts/linux-x86_64/
 
+          # Strip debug symbols to reduce size
+          strip artifacts/linux-x86_64/libgmssl.so.3
+
           # Verify library
           file artifacts/linux-x86_64/libgmssl.so.3
           ldd artifacts/linux-x86_64/libgmssl.so.3
+          ls -lh artifacts/linux-x86_64/libgmssl.so.3
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -97,8 +101,10 @@ jobs:
               make -j\$(nproc) && \
               mkdir -p /artifacts/linux-aarch64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-aarch64/ && \
+              strip /artifacts/linux-aarch64/libgmssl.so.3 && \
               file /artifacts/linux-aarch64/libgmssl.so.3 && \
-              ldd /artifacts/linux-aarch64/libgmssl.so.3
+              ldd /artifacts/linux-aarch64/libgmssl.so.3 && \
+              ls -lh /artifacts/linux-aarch64/libgmssl.so.3
             "
 
       - name: Verify library
@@ -141,10 +147,14 @@ jobs:
         run: |
           mkdir -p artifacts/macos-arm64
           cp GmSSL/build/bin/libgmssl.3.dylib artifacts/macos-arm64/
-          
+
+          # Strip debug symbols to reduce size
+          strip -x artifacts/macos-arm64/libgmssl.3.dylib
+
           # Verify library
           file artifacts/macos-arm64/libgmssl.3.dylib
           otool -L artifacts/macos-arm64/libgmssl.3.dylib
+          ls -lh artifacts/macos-arm64/libgmssl.3.dylib
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -181,10 +191,14 @@ jobs:
         run: |
           mkdir -p artifacts/macos-x86_64
           cp GmSSL/build/bin/libgmssl.3.dylib artifacts/macos-x86_64/
-          
+
+          # Strip debug symbols to reduce size
+          strip -x artifacts/macos-x86_64/libgmssl.3.dylib
+
           # Verify library
           file artifacts/macos-x86_64/libgmssl.3.dylib
           otool -L artifacts/macos-x86_64/libgmssl.3.dylib
+          ls -lh artifacts/macos-x86_64/libgmssl.3.dylib
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
