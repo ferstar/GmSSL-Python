@@ -12,7 +12,7 @@ Internal module for SM2 elliptic curve cryptography.
 This module should not be imported directly by users.
 """
 
-from ctypes import Structure, byref, c_char_p, c_size_t, c_uint8, create_string_buffer
+from ctypes import Structure, byref, c_char_p, c_size_t, c_uint, c_uint8, create_string_buffer
 
 from gmssl._constants import (
     DO_SIGN,
@@ -149,8 +149,31 @@ class Sm2Key(Structure):
 # =============================================================================
 
 
+class Sm2SignPreComp(Structure):
+    _fields_ = [
+        ("k", c_uint8 * 32),  # sm2_z256_t = uint64_t[4] = 32 bytes
+        ("x1_modn", c_uint8 * 32)
+    ]
+
+
+class Sm2Z256Point(Structure):
+    _fields_ = [
+        ("X", c_uint8 * 32),  # sm2_z256_t
+        ("Y", c_uint8 * 32),
+        ("Z", c_uint8 * 32)
+    ]
+
+
 class Sm2Signature(Structure):
-    _fields_ = [("sm3_ctx", Sm3), ("key", Sm2Key)]
+    _fields_ = [
+        ("sm3_ctx", Sm3),
+        ("saved_sm3_ctx", Sm3),
+        ("key", Sm2Key),
+        ("fast_sign_private", c_uint8 * 32),  # sm2_z256_t
+        ("pre_comp", Sm2SignPreComp * 32),  # SM2_SIGN_PRE_COMP_COUNT = 32
+        ("num_pre_comp", c_uint),  # unsigned int
+        ("public_point_table", Sm2Z256Point * 16)
+    ]
 
     def __init__(self, sm2_key, signer_id=SM2_DEFAULT_ID, sign=DO_SIGN):
         signer_id = signer_id.encode("utf-8")
