@@ -18,45 +18,99 @@ on:
         default: 'https://github.com/guanzhi/GmSSL.git'
 
 jobs:
-  build-linux:
+  build-linux-x86_64:
     name: Build GmSSL for Linux (x86_64)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout GmSSL-Python
         uses: actions/checkout@v4
-      
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake
-      
+
       - name: Clone GmSSL
         run: |
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
-      
+
       - name: Build GmSSL
         run: |
           cd GmSSL
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
-      
+
       - name: Copy library
         run: |
           mkdir -p artifacts/linux-x86_64
           cp GmSSL/build/bin/libgmssl.so.3 artifacts/linux-x86_64/
-          
+
           # Verify library
           file artifacts/linux-x86_64/libgmssl.so.3
           ldd artifacts/linux-x86_64/libgmssl.so.3
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: gmssl-linux-x86_64
           path: artifacts/linux-x86_64/libgmssl.so.3
+          retention-days: 7
+
+  build-linux-aarch64:
+    name: Build GmSSL for Linux (aarch64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout GmSSL-Python
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static
+
+      - name: Clone GmSSL
+        run: |
+          git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
+            ${{ github.event.inputs.gmssl_repo }} GmSSL
+
+      - name: Build GmSSL in ARM64 container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v $PWD/GmSSL:/workspace \
+            -v $PWD/artifacts:/artifacts \
+            arm64v8/ubuntu:22.04 \
+            bash -c "
+              apt-get update && \
+              apt-get install -y build-essential cmake file && \
+              cd /workspace && \
+              mkdir -p build && cd build && \
+              cmake .. -DCMAKE_BUILD_TYPE=Release && \
+              make -j\$(nproc) && \
+              mkdir -p /artifacts/linux-aarch64 && \
+              cp bin/libgmssl.so.3 /artifacts/linux-aarch64/ && \
+              file /artifacts/linux-aarch64/libgmssl.so.3 && \
+              ldd /artifacts/linux-aarch64/libgmssl.so.3
+            "
+
+      - name: Verify library
+        run: |
+          file artifacts/linux-aarch64/libgmssl.so.3
+          ls -lh artifacts/linux-aarch64/libgmssl.so.3
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmssl-linux-aarch64
+          path: artifacts/linux-aarch64/libgmssl.so.3
           retention-days: 7
 
   build-macos-arm64:
@@ -180,7 +234,7 @@ jobs:
 
   create-pr:
     name: Create PR with updated libraries
-    needs: [build-linux, build-macos-arm64, build-macos-x86_64, build-windows]
+    needs: [build-linux-x86_64, build-linux-aarch64, build-macos-arm64, build-macos-x86_64, build-windows]
     runs-on: ubuntu-latest
     
     steps:
@@ -195,33 +249,53 @@ jobs:
       - name: Organize libraries
         run: |
           mkdir -p src/gmssl/_libs
-          
-          # Linux
-          cp downloaded-libs/gmssl-linux-x86_64/libgmssl.so.3 src/gmssl/_libs/
-          
+
+          # Linux x86_64
+          cp downloaded-libs/gmssl-linux-x86_64/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.x86_64
+
+          # Linux aarch64
+          cp downloaded-libs/gmssl-linux-aarch64/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.aarch64
+
+          # Create symlink for default Linux library (x86_64 for compatibility)
+          ln -sf libgmssl.so.3.x86_64 src/gmssl/_libs/libgmssl.so.3
+
           # macOS (create universal binary from arm64 and x86_64)
-          lipo -create \
-            downloaded-libs/gmssl-macos-arm64/libgmssl.3.dylib \
-            downloaded-libs/gmssl-macos-x86_64/libgmssl.3.dylib \
-            -output src/gmssl/_libs/libgmssl.3.dylib || \
+          # Install lipo if not available (shouldn't be needed on ubuntu, but just in case)
+          if ! command -v lipo &> /dev/null; then
+            echo "Warning: lipo not available, using arm64 library only"
             cp downloaded-libs/gmssl-macos-arm64/libgmssl.3.dylib src/gmssl/_libs/
-          
+          else
+            lipo -create \
+              downloaded-libs/gmssl-macos-arm64/libgmssl.3.dylib \
+              downloaded-libs/gmssl-macos-x86_64/libgmssl.3.dylib \
+              -output src/gmssl/_libs/libgmssl.3.dylib || \
+              cp downloaded-libs/gmssl-macos-arm64/libgmssl.3.dylib src/gmssl/_libs/
+          fi
+
           # Windows
           cp downloaded-libs/gmssl-windows-x86_64/gmssl.dll src/gmssl/_libs/
-          
-          # List files
+
+          # List files with architecture info
+          echo "=== Bundled Libraries ==="
           ls -lh src/gmssl/_libs/
+          echo ""
+          echo "=== Architecture Verification ==="
+          file src/gmssl/_libs/libgmssl.so.3.x86_64 || true
+          file src/gmssl/_libs/libgmssl.so.3.aarch64 || true
+          file src/gmssl/_libs/libgmssl.3.dylib || true
+          file src/gmssl/_libs/gmssl.dll || true
       
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: |
             chore: update bundled GmSSL libraries to v${{ github.event.inputs.gmssl_version }}
-            
-            - Linux x86_64: libgmssl.so.3
+
+            - Linux x86_64: libgmssl.so.3.x86_64
+            - Linux aarch64: libgmssl.so.3.aarch64
             - macOS universal: libgmssl.3.dylib (arm64 + x86_64)
             - Windows x86_64: gmssl.dll
-            
+
             Built from: ${{ github.event.inputs.gmssl_repo }}
             Version: v${{ github.event.inputs.gmssl_version }}
           branch: update-gmssl-libs-${{ github.event.inputs.gmssl_version }}
@@ -229,27 +303,29 @@ jobs:
           title: 'chore: update bundled GmSSL libraries to v${{ github.event.inputs.gmssl_version }}'
           body: |
             ## Update Bundled GmSSL Libraries
-            
+
             This PR updates the bundled GmSSL dynamic libraries to version **v${{ github.event.inputs.gmssl_version }}**.
-            
+
             ### Changes
-            - ✅ Linux x86_64: `libgmssl.so.3`
+            - ✅ Linux x86_64: `libgmssl.so.3.x86_64`
+            - ✅ Linux aarch64: `libgmssl.so.3.aarch64`
             - ✅ macOS universal: `libgmssl.3.dylib` (arm64 + x86_64)
             - ✅ Windows x86_64: `gmssl.dll`
-            
+
             ### Build Information
             - **Source**: ${{ github.event.inputs.gmssl_repo }}
             - **Version**: v${{ github.event.inputs.gmssl_version }}
             - **Built by**: GitHub Actions workflow
-            
+
             ### Testing Checklist
-            - [ ] All tests pass on Linux
+            - [ ] All tests pass on Linux x86_64
+            - [ ] All tests pass on Linux aarch64
             - [ ] All tests pass on macOS (arm64)
             - [ ] All tests pass on macOS (x86_64)
             - [ ] All tests pass on Windows
             - [ ] Wheel package includes all libraries
             - [ ] Library loading priority works correctly (system > bundled)
-            
+
             ### License
             GmSSL is licensed under Apache-2.0, same as this project.
             Redistribution is permitted under the terms of the Apache License 2.0.

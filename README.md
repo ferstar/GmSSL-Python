@@ -49,6 +49,7 @@ pip install gmssl-python
 
 **支持的平台：**
 - ✅ Linux x86_64
+- ✅ Linux aarch64 (ARM64)
 - ✅ macOS (arm64 + x86_64 通用二进制)
 - ✅ Windows x86_64
 
