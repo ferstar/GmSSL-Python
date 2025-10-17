@@ -252,6 +252,6 @@ class Sm4Gcm(Structure):
                 raise NativeError("libgmssl inner error")
         else:
             if gmssl.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-                raise StateError("GCM decrypt state error")
+                raise NativeError("libgmssl inner error")
         return outbuf[: outlen.value]
 
