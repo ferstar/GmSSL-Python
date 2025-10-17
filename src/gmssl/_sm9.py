@@ -19,7 +19,6 @@ from ctypes import (
     c_size_t,
     c_uint8,
     c_uint64,
-    c_void_p,
     create_string_buffer,
 )
 
@@ -30,7 +29,8 @@ from gmssl._constants import (
     SM9_MAX_PLAINTEXT_SIZE,
     SM9_SIGNATURE_SIZE,
 )
-from gmssl._lib import NativeError, StateError, gmssl, libc
+from gmssl._file_utils import open_file
+from gmssl._lib import NativeError, StateError, gmssl
 from gmssl._sm3 import Sm3
 
 # =============================================================================
@@ -73,35 +73,29 @@ class Sm9EncKey(Structure):
         return self._has_private_key
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_enc_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), c_void_p(fp))
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if (
+                gmssl.sm9_enc_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
         self._has_private_key = True
 
     def export_encrypted_private_key_info_pem(self, path, passwd):
         if not self._has_private_key:
             raise TypeError("has no private key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_enc_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), c_void_p(fp)) != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if (
+                gmssl.sm9_enc_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1
+            ):
+                raise NativeError("libgmssl inner error")
 
     def import_enc_master_public_key_pem(self, path):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
-        if gmssl.sm9_enc_master_public_key_from_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if gmssl.sm9_enc_master_public_key_from_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
 
     def encrypt(self, plaintext):
         if len(plaintext) > SM9_MAX_PLAINTEXT_SIZE:
@@ -178,50 +172,42 @@ class Sm9EncMasterKey(Structure):
         return key
 
     def import_encrypted_master_key_info_pem(self, path, passwd):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_enc_master_key_info_decrypt_from_pem(
-                byref(self), c_char_p(passwd), c_void_p(fp)
-            )
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if (
+                gmssl.sm9_enc_master_key_info_decrypt_from_pem(
+                    byref(self), c_char_p(passwd), fp
+                )
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
     def export_encrypted_master_key_info_pem(self, path, passwd):
         if not self._has_private_key:
             raise TypeError("has no master key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_enc_master_key_info_encrypt_to_pem(
-                byref(self), c_char_p(passwd), c_void_p(fp)
-            )
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if (
+                gmssl.sm9_enc_master_key_info_encrypt_to_pem(
+                    byref(self), c_char_p(passwd), fp
+                )
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
 
     def export_public_master_key_pem(self, path):
         if not self._has_public_key:
             raise TypeError("has no public master key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
-        if gmssl.sm9_enc_master_public_key_to_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if gmssl.sm9_enc_master_public_key_to_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
 
     def import_public_master_key_pem(self, path):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
-        if gmssl.sm9_enc_master_public_key_from_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if gmssl.sm9_enc_master_public_key_from_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = False
 
@@ -272,36 +258,30 @@ class Sm9SignKey(Structure):
         return self._has_public_key
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_sign_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), c_void_p(fp))
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if (
+                gmssl.sm9_sign_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
     def export_encrypted_private_key_info_pem(self, path, passwd):
         if not self._has_private_key:
             raise TypeError("has no private key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_sign_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), c_void_p(fp)) != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if (
+                gmssl.sm9_sign_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1
+            ):
+                raise NativeError("libgmssl inner error")
 
     def import_sign_master_public_key_pem(self, path):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
-        if gmssl.sm9_sign_master_public_key_from_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if gmssl.sm9_sign_master_public_key_from_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = False
 
@@ -341,50 +321,42 @@ class Sm9SignMasterKey(Structure):
         return key
 
     def import_encrypted_master_key_info_pem(self, path, passwd):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_sign_master_key_info_decrypt_from_pem(
-                byref(self), c_char_p(passwd), c_void_p(fp)
-            )
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if (
+                gmssl.sm9_sign_master_key_info_decrypt_from_pem(
+                    byref(self), c_char_p(passwd), fp
+                )
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
     def export_encrypted_master_key_info_pem(self, path, passwd):
         if not self._has_private_key:
             raise TypeError("has no master key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm9_sign_master_key_info_encrypt_to_pem(
-                byref(self), c_char_p(passwd), c_void_p(fp)
-            )
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if (
+                gmssl.sm9_sign_master_key_info_encrypt_to_pem(
+                    byref(self), c_char_p(passwd), fp
+                )
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
 
     def export_public_master_key_pem(self, path):
         if not self._has_public_key:
             raise TypeError("has no public master key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
-        if gmssl.sm9_sign_master_public_key_to_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if gmssl.sm9_sign_master_public_key_to_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
 
     def import_public_master_key_pem(self, path):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
-        if gmssl.sm9_sign_master_public_key_from_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if gmssl.sm9_sign_master_public_key_from_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = False
 

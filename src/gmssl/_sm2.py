@@ -12,7 +12,7 @@ Internal module for SM2 elliptic curve cryptography.
 This module should not be imported directly by users.
 """
 
-from ctypes import Structure, byref, c_char_p, c_size_t, c_uint8, c_void_p, create_string_buffer
+from ctypes import Structure, byref, c_char_p, c_size_t, c_uint8, create_string_buffer
 
 from gmssl._constants import (
     DO_SIGN,
@@ -23,7 +23,8 @@ from gmssl._constants import (
     SM2_MAX_SIGNATURE_SIZE,
     SM3_DIGEST_SIZE,
 )
-from gmssl._lib import NativeError, StateError, gmssl, libc
+from gmssl._file_utils import open_file
+from gmssl._lib import NativeError, StateError, gmssl
 from gmssl._sm3 import Sm3
 
 # =============================================================================
@@ -65,44 +66,36 @@ class Sm2Key(Structure):
     def export_encrypted_private_key_info_pem(self, path, passwd):
         if not self._has_private_key:
             raise TypeError("has no private key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm2_private_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), c_void_p(fp))
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if (
+                gmssl.sm2_private_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp)
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
         passwd = passwd.encode("utf-8")
-        if (
-            gmssl.sm2_private_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), c_void_p(fp))
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if (
+                gmssl.sm2_private_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
     def export_public_key_info_pem(self, path):
         if not self._has_public_key:
             raise TypeError("has no public key")
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
-        if gmssl.sm2_public_key_info_to_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "wb") as fp:
+            if gmssl.sm2_public_key_info_to_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
 
     def import_public_key_info_pem(self, path):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "rb")
-        if gmssl.sm2_public_key_info_from_pem(byref(self), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
-        libc.fclose(c_void_p(fp))
+        with open_file(path, "rb") as fp:
+            if gmssl.sm2_public_key_info_from_pem(byref(self), fp) != 1:
+                raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = False
 
