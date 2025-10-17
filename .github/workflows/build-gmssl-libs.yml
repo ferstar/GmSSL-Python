@@ -60,7 +60,11 @@ jobs:
               echo '=== GLIBC version requirement ===' && \
               objdump -T /artifacts/linux-x86_64/libgmssl.so.3 | grep GLIBC | awk '{print \$5}' | sort -Vu && \
               echo '=== SM3 PBKDF2 symbol check ===' && \
-              nm -D /artifacts/linux-x86_64/libgmssl.so.3 | grep sm3_pbkdf2 || echo 'WARNING: sm3_pbkdf2 symbol not found!' && \
+              if ! nm -D /artifacts/linux-x86_64/libgmssl.so.3 | grep -q sm3_pbkdf2; then \
+                echo 'ERROR: sm3_pbkdf2 symbol not found!'; \
+                exit 1; \
+              fi && \
+              echo 'sm3_pbkdf2 symbol found' && \
               echo '=== SM9 symbols check ===' && \
               nm -D /artifacts/linux-x86_64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
             "
@@ -118,7 +122,11 @@ jobs:
               echo '=== GLIBC version requirement ===' && \
               objdump -T /artifacts/linux-aarch64/libgmssl.so.3 | grep GLIBC | awk '{print \$5}' | sort -Vu && \
               echo '=== SM3 PBKDF2 symbol check ===' && \
-              nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep sm3_pbkdf2 || echo 'WARNING: sm3_pbkdf2 symbol not found!' && \
+              if ! nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep -q sm3_pbkdf2; then \
+                echo 'ERROR: sm3_pbkdf2 symbol not found!'; \
+                exit 1; \
+              fi && \
+              echo 'sm3_pbkdf2 symbol found' && \
               echo '=== SM9 symbols check ===' && \
               nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
             "
@@ -506,7 +514,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: |
-            chore: update bundled GmSSL libraries to v${{ github.event.inputs.gmssl_version }}
+            chore: update bundled GmSSL libraries to ${{ github.event.inputs.gmssl_version }}
 
             - Linux x86_64: libgmssl.so.3.x86_64
             - Linux aarch64: libgmssl.so.3.aarch64
@@ -514,14 +522,14 @@ jobs:
             - Windows x86_64: gmssl.dll
 
             Built from: ${{ github.event.inputs.gmssl_repo }}
-            Version: v${{ github.event.inputs.gmssl_version }}
+            Version: ${{ github.event.inputs.gmssl_version }}
           branch: update-gmssl-libs-${{ github.event.inputs.gmssl_version }}
           delete-branch: true
-          title: 'chore: update bundled GmSSL libraries to v${{ github.event.inputs.gmssl_version }}'
+          title: 'chore: update bundled GmSSL libraries to ${{ github.event.inputs.gmssl_version }}'
           body: |
             ## Update Bundled GmSSL Libraries
 
-            This PR updates the bundled GmSSL dynamic libraries to version **v${{ github.event.inputs.gmssl_version }}**.
+            This PR updates the bundled GmSSL dynamic libraries to version **${{ github.event.inputs.gmssl_version }}**.
 
             ### Changes
             - ✅ Linux x86_64: `libgmssl.so.3.x86_64`
@@ -531,7 +539,7 @@ jobs:
 
             ### Build Information
             - **Source**: ${{ github.event.inputs.gmssl_repo }}
-            - **Version**: v${{ github.event.inputs.gmssl_version }}
+            - **Version**: ${{ github.event.inputs.gmssl_version }}
             - **Built by**: GitHub Actions workflow
 
             ### Testing Checklist
