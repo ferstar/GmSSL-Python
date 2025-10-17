@@ -26,9 +26,7 @@ GmSSL-Python/
 │       └── _core.py       # 核心实现 (ctypes bindings)
 ├── tests/
 │   └── test_gmssl.py      # 测试套件
-├── pyproject.toml         # 包配置
-└── scripts/
-    └── run_tests.sh       # 测试运行脚本
+└── pyproject.toml         # 包配置
 ```
 
 **为什么使用 `src/` 布局？**
@@ -119,8 +117,6 @@ $ pip show gmssl-python
 运行测试
 
 ```bash
-$ ./scripts/run_tests.sh
-# 或者
 $ pytest tests/ -v
 ================================================= test session starts =================================================
 platform darwin -- Python 3.12.9, pytest-8.4.2, pluggy-1.6.0
@@ -188,13 +184,7 @@ echo -n abc | gmssl sm3
 ### 运行测试
 
 ```bash
-# 使用提供的脚本（自动处理库路径）
-./scripts/run_tests.sh
-
-# 或手动设置环境
-source .venv/bin/activate
-export DYLD_LIBRARY_PATH=./gm/lib  # macOS
-# export LD_LIBRARY_PATH=./gm/lib  # Linux
+# 库已自包含，无需设置环境变量
 pytest tests/ -v
 ```
 
@@ -202,7 +192,7 @@ pytest tests/ -v
 
 1. 编辑 `src/gmssl/_core.py` 中的实现代码
 2. 如需更新公共 API，修改 `src/gmssl/__init__.py`
-3. 运行测试验证：`./scripts/run_tests.sh`
+3. 运行测试验证：`pytest tests/ -v`
 4. 格式化代码：`ruff format src/ tests/`
 5. 检查代码：`ruff check src/ tests/`
 

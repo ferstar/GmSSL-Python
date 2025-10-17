@@ -48,9 +48,8 @@ After the PR is created, test on each platform:
 git fetch origin update-gmssl-libs-{version}
 git checkout update-gmssl-libs-{version}
 
-# Run tests
-source .venv/bin/activate
-./scripts/run_tests.sh -v
+# Run tests (library is self-contained, no environment setup needed)
+pytest tests/ -v
 
 # Build wheel and verify library is included
 python -m build --wheel

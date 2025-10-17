@@ -192,9 +192,8 @@ print(f'Loaded from: {_find_gmssl_library()}')
 print(f'Version: {gmssl.gmssl_version_num()}')
 "
 
-# Run full test suite
-source .venv/bin/activate
-./scripts/run_tests.sh -v
+# Run full test suite (library is self-contained)
+pytest tests/ -v
 
 # Build wheel and verify library is included
 python -m build --wheel
