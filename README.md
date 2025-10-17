@@ -60,17 +60,24 @@ $ pip show gmssl-python
 
 从代码仓库中安装的`gmssl-python`通常不是最新版本，可以下载最新的GmSSL-Python代码  [GmSSL-Python-main.zip](https://github.com/GmSSL/GmSSL-Python/archive/refs/heads/main.zip)，本地安装。
 
-解压缩并进入源代码目录`GmSSL-Python-main`。由于最新代码可能还处于开发过程中，在安装前必须进行测试确保全部功能正确，`gmssl-python`中提供了测试，执行如下命令
+解压缩并进入源代码目录`GmSSL-Python-main`。由于最新代码可能还处于开发过程中，在安装前必须进行测试确保全部功能正确，`gmssl-python`中提供了基于 pytest 的测试，执行如下命令
 
 运行测试
 
 ```bash
-$ python -m unittest -v
-................
-----------------------------------------------------------------------
-Ran 16 tests in 1.407s
+$ ./scripts/run_tests.sh
+# 或者
+$ pytest tests/ -v
+================================================= test session starts =================================================
+platform darwin -- Python 3.12.9, pytest-8.4.2, pluggy-1.6.0
+collected 19 items
 
-OK
+tests/test_gmssl.py::TestVersion::test_library_version_num PASSED                                              [  5%]
+tests/test_gmssl.py::TestVersion::test_library_version_string PASSED                                           [ 10%]
+...
+tests/test_gmssl.py::TestSM2Certificate::test_sm2_certificate_parsing PASSED                                   [100%]
+
+================================================= 19 passed in 1.04s ==================================================
 ```
 
 上面的输出表明测试通过。
