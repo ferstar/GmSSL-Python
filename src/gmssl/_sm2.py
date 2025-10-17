@@ -24,7 +24,7 @@ from gmssl._constants import (
     SM3_DIGEST_SIZE,
 )
 from gmssl._file_utils import open_file
-from gmssl._lib import NativeError, StateError, gmssl
+from gmssl._lib import NativeError, StateError, gmssl, raise_on_error
 from gmssl._sm3 import Sm3
 
 # =============================================================================
@@ -44,8 +44,7 @@ class Sm2Key(Structure):
         self._has_private_key = False
 
     def generate_key(self):
-        if gmssl.sm2_key_generate(byref(self)) != 1:
-            raise NativeError("libgmssl inner error")
+        raise_on_error(gmssl.sm2_key_generate(byref(self)), "sm2_key_generate")
         self._has_public_key = True
         self._has_private_key = True
 
@@ -68,20 +67,18 @@ class Sm2Key(Structure):
             raise TypeError("has no private key")
         passwd = passwd.encode("utf-8")
         with open_file(path, "wb") as fp:
-            if (
-                gmssl.sm2_private_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            raise_on_error(
+                gmssl.sm2_private_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp),
+                "sm2_private_key_info_encrypt_to_pem",
+            )
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
         with open_file(path, "rb") as fp:
-            if (
-                gmssl.sm2_private_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            raise_on_error(
+                gmssl.sm2_private_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp),
+                "sm2_private_key_info_decrypt_from_pem",
+            )
         self._has_public_key = True
         self._has_private_key = True
 

@@ -47,3 +47,26 @@ class StateError(Exception):
     Crypto state error
     """
 
+
+# =============================================================================
+# Error Handling Utilities
+# =============================================================================
+
+
+def raise_on_error(result, func_name):
+    """
+    Raise NativeError if gmssl function returns error.
+
+    Args:
+        result: Return value from gmssl function (1 = success, other = error)
+        func_name: Name of the gmssl function that was called
+
+    Raises:
+        NativeError: If result != 1
+
+    Example:
+        raise_on_error(gmssl.sm2_key_generate(byref(key)), "sm2_key_generate")
+    """
+    if result != 1:
+        raise NativeError(f"{func_name} failed")
+
