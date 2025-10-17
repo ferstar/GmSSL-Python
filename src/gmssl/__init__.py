@@ -55,6 +55,7 @@ from gmssl._constants import (
     SM4_GCM_MIN_IV_SIZE,
     SM4_KEY_SIZE,
     # ZUC Stream Cipher Constants
+    ZUC_BLOCK_SIZE,
     ZUC_IV_SIZE,
     ZUC_KEY_SIZE,
     # SM2 Public Key Cryptography Constants
@@ -142,6 +143,7 @@ __all__ = [
     "Sm4Ctr",
     "Sm4Gcm",
     # ZUC Stream Cipher
+    "ZUC_BLOCK_SIZE",
     "ZUC_IV_SIZE",
     "ZUC_KEY_SIZE",
     "Zuc",

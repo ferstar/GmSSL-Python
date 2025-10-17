@@ -46,6 +46,7 @@ SM4_GCM_MAX_TAG_SIZE = 16
 
 ZUC_KEY_SIZE = 16
 ZUC_IV_SIZE = 16
+ZUC_BLOCK_SIZE = 4  # ZUC is a stream cipher with 4-byte (32-bit) blocks
 
 # =============================================================================
 # SM2 Public Key Cryptography Constants
