@@ -136,4 +136,7 @@ dmypy.json
 gm/
 GmSSL/
 
+# GitHub Actions artifacts (should not be committed)
+downloaded-libs/
+
 .idea/
