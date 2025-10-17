@@ -25,23 +25,35 @@ The `build-gmssl-libs.yml` workflow builds GmSSL dynamic libraries for multiple 
 ### What Happens
 
 1. **Build Stage**: Compiles GmSSL for each platform in parallel
-   - Linux: Ubuntu latest with GCC
+   - Linux x86_64: Ubuntu latest with GCC
+   - Linux aarch64: Ubuntu with QEMU (ARM64 emulation)
    - macOS arm64: macOS latest (M1/M2)
    - macOS x86_64: macOS 13 (Intel)
-   - Windows: Windows latest with MSVC
+   - Windows x86_64: Windows latest with MSVC
 
 2. **Artifact Stage**: Uploads compiled libraries as artifacts
    - Retention: 7 days
    - Can be downloaded manually if needed
 
-3. **PR Stage**: Creates a pull request with updated libraries
+3. **Test Stage**: Automatically tests libraries on multiple platforms
+   - **Linux**: Tests with Python 3.8, 3.9, 3.10, 3.11, 3.12
+   - **macOS**: Tests with Python 3.12 (universal binary)
+   - **Windows**: Tests with Python 3.12
+   - Runs full test suite (`pytest tests/ -v`)
+   - Verifies library loading and version info
+   - **Fail-fast disabled**: All combinations tested even if one fails
+
+4. **PR Stage**: Creates a pull request with updated libraries (only if tests pass)
    - Branch: `update-gmssl-libs-{version}`
    - Includes all platform libraries
    - macOS: Creates universal binary (arm64 + x86_64)
+   - **All tests must pass** before PR is created
 
 ### Testing the PR
 
-After the PR is created, test on each platform:
+**Automated Testing**: The workflow automatically tests all libraries before creating the PR. You can review test results in the Actions tab.
+
+**Manual Testing** (optional): If you want to test locally:
 
 ```bash
 # Clone the PR branch
@@ -55,6 +67,12 @@ pytest tests/ -v
 python -m build --wheel
 unzip -l dist/gmssl_python-*.whl | grep -E "(\.dylib|\.so|\.dll)"
 ```
+
+**Test Coverage**:
+- ✅ Linux x86_64: Python 3.8, 3.9, 3.10, 3.11, 3.12
+- ✅ macOS universal: Python 3.12
+- ✅ Windows x86_64: Python 3.12
+- ✅ All 19 test cases from `tests/test_gmssl.py`
 
 ### Manual Library Update
 
@@ -102,6 +120,19 @@ If you need to update libraries manually:
 **Q: Library dependencies missing**
 - GmSSL should only depend on system libraries
 - Check with `ldd` (Linux), `otool -L` (macOS), or `dumpbin /dependents` (Windows)
+
+**Q: Tests fail on specific platform**
+- Check the Actions tab for detailed test output
+- Common issues:
+  - Library not found: Verify artifact download step
+  - Import errors: Check Python version compatibility
+  - Test failures: May indicate library build issues
+- PR will not be created if any tests fail
+
+**Q: Want to skip tests and create PR anyway**
+- Not recommended, but you can:
+  - Manually download artifacts from the workflow run
+  - Create PR manually following the steps in "Manual Library Update"
 
 ### License
 
