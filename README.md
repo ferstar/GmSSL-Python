@@ -39,9 +39,39 @@ GmSSL-Python/
 
 ## 安装
 
-由于`gmssl-python`以`ctypes`方式实现，因此所有密码功能都是通过调用本地安装的GmSSL动态库 (如`/usr/local/lib/libgmssl.so`)实现的，在安装和调用`gmssl-python`之前必须首先在系统上安装GmSSL，然后通过Python的包管理工具`pip`从Python代码仓库安装，或者从`gmssl-python`项目的代码仓库https://github.com/GmSSL/GmSSL-Python 下载最新的源代码，从本地安装。
+### 快速安装（推荐）
 
-### 安装GmSSL
+从 v2.2.2 开始，`gmssl-python` 已经包含了 GmSSL 动态库，可以直接通过 `pip` 安装使用：
+
+```bash
+pip install gmssl-python
+```
+
+**支持的平台：**
+- ✅ Linux x86_64
+- ✅ macOS (arm64 + x86_64 通用二进制)
+- ✅ Windows x86_64
+
+安装后即可直接使用，无需额外安装 GmSSL 库。
+
+### 库加载优先级
+
+`gmssl-python` 使用智能库加载策略（遵循 "Never break userspace" 原则）：
+
+1. **系统库优先**：如果系统已安装 GmSSL（如 `/usr/local/lib/libgmssl.so`），优先使用系统库
+2. **包内库回退**：如果系统没有 GmSSL，使用包内打包的库
+3. **版本检查**：如果系统库版本 < 3.1.1，自动回退到包内库（如果可用）
+
+这确保了：
+- ✅ 已有系统 GmSSL 的用户继续使用其版本（向后兼容）
+- ✅ 新用户无需手动安装 GmSSL（开箱即用）
+- ✅ 开发者可以通过安装系统 GmSSL 覆盖包内库（灵活性）
+
+### 手动安装 GmSSL（可选）
+
+如果你希望使用系统级 GmSSL 库（例如需要最新版本或自定义编译），可以按以下步骤手动安装：
+
+#### 安装GmSSL
 
 首先在https://github.com/guanzhi/GmSSL 项目上下载最新的GmSSL代码[GmSSL-master.zip](https://github.com/guanzhi/GmSSL/archive/refs/heads/master.zip)，编译并安装。GmSSL代码是C语言编写的，需要安装GCC、CMake来编译，在Ubuntu/Debian系统上可以执行
 
@@ -970,6 +1000,29 @@ verify = Sm9Signature(DO_VERIFY)
 verify.update(message.encode('utf-8'))
 ret = verify.verify(sig, master_pub, signer_id)
 ```
+
+## 许可证
+
+### GmSSL-Python
+
+本项目采用 Apache License 2.0 许可证。详见 [LICENSE](LICENSE) 文件。
+
+### 打包的 GmSSL 库
+
+从 v2.2.2 开始，`gmssl-python` 包含了预编译的 GmSSL 动态库（位于 `src/gmssl/_libs/`）。
+
+**GmSSL 库信息：**
+- **项目**: [GmSSL](https://github.com/guanzhi/GmSSL)
+- **版本**: 3.1.1
+- **许可证**: Apache License 2.0
+- **版权**: Copyright 2014-2023 The GmSSL Project
+
+根据 Apache License 2.0 的条款，我们被允许重新分发 GmSSL 库的二进制文件。GmSSL 库与本项目采用相同的许可证，因此用户可以自由使用、修改和分发。
+
+**重要说明：**
+- 打包的 GmSSL 库仅用于便利性，用户可以选择使用系统安装的 GmSSL 库
+- 系统库（如果存在）将优先于打包的库被加载
+- 如需最新版本或自定义编译的 GmSSL，请参考上述"手动安装 GmSSL"部分
 
 
 
