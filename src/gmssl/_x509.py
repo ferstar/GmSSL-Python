@@ -16,6 +16,7 @@ import datetime
 from ctypes import byref, c_char_p, c_int, c_size_t, c_ulong, c_void_p, create_string_buffer
 
 from gmssl._constants import _ASN1_TAG_IA5String, _ASN1_TAG_SEQUENCE, _ASN1_TAG_SET
+from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, gmssl, libc
 from gmssl._sm2 import Sm2Key
 
@@ -119,10 +120,9 @@ class Sm2Certificate:
         return self._cert
 
     def export_pem(self, path):
-        libc.fopen.restype = c_void_p
-        fp = libc.fopen(path.encode("utf-8"), "wb")
-        if gmssl.x509_cert_to_pem(self._cert, c_size_t(len(self._cert)), c_void_p(fp)) != 1:
-            raise NativeError("libgmssl inner error")
+        with open_file(path, "wb") as fp:
+            if gmssl.x509_cert_to_pem(self._cert, c_size_t(len(self._cert)), fp) != 1:
+                raise NativeError("libgmssl inner error")
 
     def get_serial_number(self):
         serial_ptr = c_void_p()
