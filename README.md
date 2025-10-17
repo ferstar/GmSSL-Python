@@ -14,6 +14,29 @@
 
 目前`gmssl-python`功能可以覆盖除SSL/TLS/TLCP之外的国密算法主要应用开发场景。
 
+## 项目结构
+
+本项目采用 Python 包最佳实践的 `src/` 布局：
+
+```
+GmSSL-Python/
+├── src/
+│   └── gmssl/
+│       ├── __init__.py    # 公共 API 导出
+│       └── _core.py       # 核心实现 (ctypes bindings)
+├── tests/
+│   └── test_gmssl.py      # 测试套件
+├── pyproject.toml         # 包配置
+└── scripts/
+    └── run_tests.sh       # 测试运行脚本
+```
+
+**为什么使用 `src/` 布局？**
+- 强制开发者测试已安装的包，而不是源代码目录
+- 避免开发环境和安装版本之间的导入混淆
+- PyPA (Python Packaging Authority) 推荐
+- 被现代 Python 项目广泛采用 (requests, pytest 等)
+
 ## 安装
 
 由于`gmssl-python`以`ctypes`方式实现，因此所有密码功能都是通过调用本地安装的GmSSL动态库 (如`/usr/local/lib/libgmssl.so`)实现的，在安装和调用`gmssl-python`之前必须首先在系统上安装GmSSL，然后通过Python的包管理工具`pip`从Python代码仓库安装，或者从`gmssl-python`项目的代码仓库https://github.com/GmSSL/GmSSL-Python 下载最新的源代码，从本地安装。
@@ -129,7 +152,40 @@ echo -n abc | gmssl sm3
 
 可以看到输出相同的SM3哈希值
 
+## 开发指南
 
+### 运行测试
+
+```bash
+# 使用提供的脚本（自动处理库路径）
+./scripts/run_tests.sh
+
+# 或手动设置环境
+source .venv/bin/activate
+export DYLD_LIBRARY_PATH=./gm/lib  # macOS
+# export LD_LIBRARY_PATH=./gm/lib  # Linux
+pytest tests/ -v
+```
+
+### 修改代码
+
+1. 编辑 `src/gmssl/_core.py` 中的实现代码
+2. 如需更新公共 API，修改 `src/gmssl/__init__.py`
+3. 运行测试验证：`./scripts/run_tests.sh`
+4. 格式化代码：`ruff format src/ tests/`
+5. 检查代码：`ruff check src/ tests/`
+
+### 发布到 PyPI
+
+参考 https://packaging.python.org/distributing/
+
+1. 更新版本号：
+   - `src/gmssl/_core.py` 中的 `GMSSL_PYTHON_VERSION = "x.y.z"`
+   - `pyproject.toml` 中的 `version = "x.y.z"`
+2. 构建包：`python3 -m build`
+3. 发布到 PyPI：`python3 -m twine upload dist/*`
+
+**注意：** 版本号必须在两个文件中保持同步。
 
 
 

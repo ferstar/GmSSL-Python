@@ -26,6 +26,10 @@ from ctypes import (
 )
 from ctypes.util import find_library
 
+# =============================================================================
+# Library Loading
+# =============================================================================
+
 if find_library("gmssl") is None:
     raise ValueError("Install GmSSL dynamic library from https://github.com/guanzhi/GmSSL")
 gmssl = cdll.LoadLibrary(find_library("gmssl"))
@@ -36,6 +40,10 @@ if sys.platform == "win32":
     libc = cdll.LoadLibrary(find_library("msvcrt"))
 else:
     libc = cdll.LoadLibrary(find_library("c"))
+
+# =============================================================================
+# Exceptions
+# =============================================================================
 
 
 class NativeError(Exception):
@@ -49,6 +57,10 @@ class StateError(Exception):
     Crypto state error
     """
 
+
+# =============================================================================
+# Version Information
+# =============================================================================
 
 GMSSL_PYTHON_VERSION = "2.2.2"
 
@@ -64,6 +76,68 @@ def gmssl_library_version_str():
 
 GMSSL_LIBRARY_VERSION = gmssl_library_version_str()
 
+# =============================================================================
+# Constants - All public constants defined here
+# =============================================================================
+
+# SM3 Hash Constants
+SM3_DIGEST_SIZE = 32
+SM3_HMAC_MIN_KEY_SIZE = 16
+SM3_HMAC_MAX_KEY_SIZE = 64
+SM3_HMAC_SIZE = SM3_DIGEST_SIZE
+SM3_PBKDF2_MIN_ITER = 10000  # from <gmssl/pbkdf2.h>
+SM3_PBKDF2_MAX_ITER = 16777216  # 2^24
+SM3_PBKDF2_MAX_SALT_SIZE = 64  # from <gmssl/pbkdf2.h>
+SM3_PBKDF2_DEFAULT_SALT_SIZE = 8  # from <gmssl/pbkdf2.h>
+SM3_PBKDF2_MAX_KEY_SIZE = 256  # from gmssljni.c:sm3_pbkdf2():sizeof(keybuf)
+
+# SM4 Block Cipher Constants
+SM4_KEY_SIZE = 16
+SM4_BLOCK_SIZE = 16
+SM4_CBC_IV_SIZE = SM4_BLOCK_SIZE
+SM4_CTR_IV_SIZE = 16
+SM4_GCM_MIN_IV_SIZE = 1
+SM4_GCM_MAX_IV_SIZE = 64
+SM4_GCM_DEFAULT_IV_SIZE = 12
+SM4_GCM_DEFAULT_TAG_SIZE = 16
+SM4_GCM_MAX_TAG_SIZE = 16
+
+# ZUC Stream Cipher Constants
+ZUC_KEY_SIZE = 16
+ZUC_IV_SIZE = 16
+
+# SM2 Public Key Cryptography Constants
+SM2_DEFAULT_ID = "1234567812345678"
+SM2_MAX_SIGNATURE_SIZE = 72
+SM2_MIN_PLAINTEXT_SIZE = 1
+SM2_MAX_PLAINTEXT_SIZE = 255
+SM2_MIN_CIPHERTEXT_SIZE = 45
+SM2_MAX_CIPHERTEXT_SIZE = 366
+
+# Encryption/Decryption and Sign/Verify Mode Constants
+DO_ENCRYPT = True
+DO_DECRYPT = False
+DO_SIGN = True
+DO_VERIFY = False
+
+# SM9 Identity-Based Cryptography Constants
+SM9_MAX_ID_SIZE = 63
+SM9_MAX_PLAINTEXT_SIZE = 255
+SM9_MAX_CIPHERTEXT_SIZE = 367
+SM9_SIGNATURE_SIZE = 104
+
+# Internal Constants (not exported in __init__.py)
+_SM3_STATE_WORDS = 8
+_SM3_BLOCK_SIZE = 64
+_SM4_NUM_ROUNDS = 32
+_ASN1_TAG_IA5String = 22
+_ASN1_TAG_SEQUENCE = 0x30
+_ASN1_TAG_SET = 0x31
+
+# =============================================================================
+# Random Number Generator
+# =============================================================================
+
 
 def rand_bytes(size):
     buf = create_string_buffer(size)
@@ -71,9 +145,9 @@ def rand_bytes(size):
     return buf.raw
 
 
-SM3_DIGEST_SIZE = 32
-_SM3_STATE_WORDS = 8
-_SM3_BLOCK_SIZE = 64
+# =============================================================================
+# SM3 Hash
+# =============================================================================
 
 
 class Sm3(Structure):
@@ -99,9 +173,9 @@ class Sm3(Structure):
         return dgst.raw
 
 
-SM3_HMAC_MIN_KEY_SIZE = 16
-SM3_HMAC_MAX_KEY_SIZE = 64
-SM3_HMAC_SIZE = SM3_DIGEST_SIZE
+# =============================================================================
+# SM3 HMAC
+# =============================================================================
 
 
 class Sm3Hmac(Structure):
@@ -126,11 +200,9 @@ class Sm3Hmac(Structure):
         return hmac.raw
 
 
-SM3_PBKDF2_MIN_ITER = 10000  # from <gmssl/pbkdf2.h>
-SM3_PBKDF2_MAX_ITER = 16777216  # 2^24
-SM3_PBKDF2_MAX_SALT_SIZE = 64  # from <gmssl/pbkdf2.h>
-SM3_PBKDF2_DEFAULT_SALT_SIZE = 8  # from <gmssl/pbkdf2.h>
-SM3_PBKDF2_MAX_KEY_SIZE = 256  # from gmssljni.c:sm3_pbkdf2():sizeof(keybuf)
+# =============================================================================
+# SM3 PBKDF2
+# =============================================================================
 
 
 def sm3_pbkdf2(passwd, salt, iterator, keylen):
@@ -163,9 +235,9 @@ def sm3_pbkdf2(passwd, salt, iterator, keylen):
     return key.raw
 
 
-SM4_KEY_SIZE = 16
-SM4_BLOCK_SIZE = 16
-_SM4_NUM_ROUNDS = 32
+# =============================================================================
+# SM4 Block Cipher
+# =============================================================================
 
 
 class Sm4(Structure):
@@ -187,7 +259,9 @@ class Sm4(Structure):
         return outbuf.raw
 
 
-SM4_CBC_IV_SIZE = SM4_BLOCK_SIZE
+# =============================================================================
+# SM4-CBC Mode
+# =============================================================================
 
 
 class Sm4Cbc(Structure):
@@ -244,7 +318,9 @@ class Sm4Cbc(Structure):
         return outbuf[: outlen.value]
 
 
-SM4_CTR_IV_SIZE = 16
+# =============================================================================
+# SM4-CTR Mode
+# =============================================================================
 
 
 class Sm4Ctr(Structure):
@@ -283,8 +359,9 @@ class Sm4Ctr(Structure):
         return outbuf[: outlen.value]
 
 
-ZUC_KEY_SIZE = 16
-ZUC_IV_SIZE = 16
+# =============================================================================
+# ZUC Stream Cipher
+# =============================================================================
 
 
 class ZucState(Structure):
@@ -339,11 +416,9 @@ class Ghash(Structure):
     ]
 
 
-SM4_GCM_MIN_IV_SIZE = 1
-SM4_GCM_MAX_IV_SIZE = 64
-SM4_GCM_DEFAULT_IV_SIZE = 12
-SM4_GCM_DEFAULT_TAG_SIZE = 16
-SM4_GCM_MAX_TAG_SIZE = 16
+# =============================================================================
+# SM4-GCM Mode
+# =============================================================================
 
 
 class Sm4Gcm(Structure):
@@ -428,14 +503,9 @@ class Sm4Gcm(Structure):
         return outbuf[: outlen.value]
 
 
-SM2_DEFAULT_ID = "1234567812345678"
-
-SM2_MAX_SIGNATURE_SIZE = 72
-
-SM2_MIN_PLAINTEXT_SIZE = 1
-SM2_MAX_PLAINTEXT_SIZE = 255
-SM2_MIN_CIPHERTEXT_SIZE = 45
-SM2_MAX_CIPHERTEXT_SIZE = 366
+# =============================================================================
+# SM2 Public Key Cryptography
+# =============================================================================
 
 
 class Sm2Point(Structure):
@@ -529,9 +599,7 @@ class Sm2Key(Structure):
             raise TypeError("has no public key")
         if len(dgst) != SM3_DIGEST_SIZE:
             raise ValueError("Invalid SM3 digest size")
-        if gmssl.sm2_verify(byref(self), dgst, signature, c_size_t(len(signature))) != 1:
-            return False
-        return True
+        return gmssl.sm2_verify(byref(self), dgst, signature, c_size_t(len(signature))) == 1
 
     def encrypt(self, data):
         if not self._has_public_key:
@@ -563,10 +631,9 @@ class Sm2Key(Structure):
         return outbuf[: outlen.value]
 
 
-DO_ENCRYPT = True
-DO_DECRYPT = False
-DO_SIGN = True
-DO_VERIFY = False
+# =============================================================================
+# SM2 Signature
+# =============================================================================
 
 
 class Sm2Signature(Structure):
@@ -627,6 +694,11 @@ class Sm2Signature(Structure):
         return True
 
 
+# =============================================================================
+# SM9 Identity-Based Cryptography
+# =============================================================================
+
+
 class sm9_bn_t(Structure):
     _fields_ = [("d", c_uint64 * 8)]
 
@@ -643,9 +715,9 @@ class Sm9TwistPoint(Structure):
     _fields_ = [("X", sm9_fp2_t), ("Y", sm9_fp2_t), ("Z", sm9_fp2_t)]
 
 
-SM9_MAX_ID_SIZE = 63
-SM9_MAX_PLAINTEXT_SIZE = 255
-SM9_MAX_CIPHERTEXT_SIZE = 367
+# =============================================================================
+# SM9 Encryption
+# =============================================================================
 
 
 class Sm9EncKey(Structure):
@@ -917,7 +989,9 @@ class Sm9SignMasterKey(Structure):
         self._has_private_key = False
 
 
-SM9_SIGNATURE_SIZE = 104
+# =============================================================================
+# SM9 Signature
+# =============================================================================
 
 
 class Sm9Signature(Structure):
@@ -990,9 +1064,9 @@ class Sm9Signature(Structure):
         return True
 
 
-_ASN1_TAG_IA5String = 22
-_ASN1_TAG_SEQUENCE = 0x30
-_ASN1_TAG_SET = 0x31
+# =============================================================================
+# X.509 Certificate Parsing Utilities
+# =============================================================================
 
 
 def gmssl_parse_attr_type_and_value(name, d, dlen):
