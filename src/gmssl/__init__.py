@@ -5,7 +5,7 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# GmSSL-Python - Python binding of the GmSSL library with `ctypes`
+# GmSSL-Python - Public API exports
 
 """
 GmSSL Python Binding
@@ -18,26 +18,23 @@ Following Linus's philosophy: "Bad programmers worry about the code.
 Good programmers worry about data structures and their relationships."
 
 This module exports a clean, minimal public API. Internal implementation
-details are kept in _core module.
+details are kept in separate modules.
 """
 
-# Import all public APIs from the core implementation
-from gmssl._core import (
-    # SM2 Public Key Cryptography
-    DO_DECRYPT,
-    DO_ENCRYPT,
-    DO_SIGN,
-    DO_VERIFY,
-    # Version information
+# Version information
+from gmssl._version import (
     GMSSL_LIBRARY_VERSION,
     GMSSL_PYTHON_VERSION,
-    SM2_DEFAULT_ID,
-    SM2_MAX_CIPHERTEXT_SIZE,
-    SM2_MAX_PLAINTEXT_SIZE,
-    SM2_MAX_SIGNATURE_SIZE,
-    SM2_MIN_CIPHERTEXT_SIZE,
-    SM2_MIN_PLAINTEXT_SIZE,
-    # SM3 Hash
+    gmssl_library_version_num,
+    gmssl_library_version_str,
+)
+
+# Exceptions
+from gmssl._lib import NativeError, StateError
+
+# Constants
+from gmssl._constants import (
+    # SM3 Hash Constants
     SM3_DIGEST_SIZE,
     SM3_HMAC_MAX_KEY_SIZE,
     SM3_HMAC_MIN_KEY_SIZE,
@@ -47,7 +44,7 @@ from gmssl._core import (
     SM3_PBKDF2_MAX_KEY_SIZE,
     SM3_PBKDF2_MAX_SALT_SIZE,
     SM3_PBKDF2_MIN_ITER,
-    # SM4 Block Cipher
+    # SM4 Block Cipher Constants
     SM4_BLOCK_SIZE,
     SM4_CBC_IV_SIZE,
     SM4_CTR_IV_SIZE,
@@ -57,44 +54,55 @@ from gmssl._core import (
     SM4_GCM_MAX_TAG_SIZE,
     SM4_GCM_MIN_IV_SIZE,
     SM4_KEY_SIZE,
-    # SM9 Identity-Based Cryptography
+    # ZUC Stream Cipher Constants
+    ZUC_IV_SIZE,
+    ZUC_KEY_SIZE,
+    # SM2 Public Key Cryptography Constants
+    DO_DECRYPT,
+    DO_ENCRYPT,
+    DO_SIGN,
+    DO_VERIFY,
+    SM2_DEFAULT_ID,
+    SM2_MAX_CIPHERTEXT_SIZE,
+    SM2_MAX_PLAINTEXT_SIZE,
+    SM2_MAX_SIGNATURE_SIZE,
+    SM2_MIN_CIPHERTEXT_SIZE,
+    SM2_MIN_PLAINTEXT_SIZE,
+    # SM9 Identity-Based Cryptography Constants
     SM9_MAX_CIPHERTEXT_SIZE,
     SM9_MAX_ID_SIZE,
     SM9_MAX_PLAINTEXT_SIZE,
     SM9_SIGNATURE_SIZE,
-    # ZUC Stream Cipher
-    ZUC_IV_SIZE,
-    ZUC_KEY_SIZE,
-    # Exceptions
-    NativeError,
-    Sm2Certificate,
-    Sm2Key,
-    Sm2Signature,
-    Sm3,
-    Sm3Hmac,
-    Sm4,
-    Sm4Cbc,
-    Sm4Ctr,
-    Sm4Gcm,
-    Sm9EncMasterKey,
-    Sm9Signature,
-    Sm9SignMasterKey,
-    StateError,
-    # X.509 Certificate Parsing Utilities
-    Validity,
-    Zuc,
-    gmssl_library_version_num,
-    gmssl_library_version_str,
-    gmssl_parse_attr_type_and_value,
-    gmssl_parse_name,
-    gmssl_parse_rdn,
-    # Random number generator
-    rand_bytes,
-    sm3_pbkdf2,
 )
 
+# Random number generator
+from gmssl._random import rand_bytes
+
+# SM3 Hash
+from gmssl._sm3 import Sm3, Sm3Hmac, sm3_pbkdf2
+
+# SM4 Block Cipher
+from gmssl._sm4 import Sm4, Sm4Cbc, Sm4Ctr, Sm4Gcm
+
+# ZUC Stream Cipher
+from gmssl._zuc import Zuc
+
+# SM2 Public Key Cryptography
+from gmssl._sm2 import Sm2Key, Sm2Signature
+
+# SM9 Identity-Based Cryptography
+from gmssl._sm9 import (
+    Sm9EncKey,
+    Sm9EncMasterKey,
+    Sm9SignKey,
+    Sm9SignMasterKey,
+    Sm9Signature,
+)
+
+# X.509 Certificate
+from gmssl._x509 import Sm2Certificate, Validity
+
 # Explicit public API declaration
-# Following Python convention: if __all__ is defined, only these names are exported
 __all__ = [
     # Version information
     "GMSSL_LIBRARY_VERSION",
@@ -156,13 +164,12 @@ __all__ = [
     "SM9_MAX_ID_SIZE",
     "SM9_MAX_PLAINTEXT_SIZE",
     "SM9_SIGNATURE_SIZE",
+    "Sm9EncKey",
     "Sm9EncMasterKey",
+    "Sm9SignKey",
     "Sm9SignMasterKey",
     "Sm9Signature",
-    # X.509 Certificate Parsing Utilities
+    # X.509 Certificate
     "Validity",
-    "gmssl_parse_attr_type_and_value",
-    "gmssl_parse_name",
-    "gmssl_parse_rdn",
 ]
 
