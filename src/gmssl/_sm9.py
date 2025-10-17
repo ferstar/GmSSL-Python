@@ -12,6 +12,7 @@ Internal module for SM9 identity-based cryptography.
 This module should not be imported directly by users.
 """
 
+import sys
 from ctypes import (
     Structure,
     byref,
@@ -31,6 +32,19 @@ from gmssl._constants import (
 from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, StateError, gmssl
 from gmssl._sm3 import Sm3
+
+# Import Windows-compatible PEM functions
+if sys.platform == "win32":
+    from gmssl._pem_utils import (
+        sm9_enc_key_info_decrypt_from_pem_windows,
+        sm9_enc_key_info_encrypt_to_pem_windows,
+        sm9_enc_master_key_info_decrypt_from_pem_windows,
+        sm9_enc_master_key_info_encrypt_to_pem_windows,
+        sm9_sign_key_info_decrypt_from_pem_windows,
+        sm9_sign_key_info_encrypt_to_pem_windows,
+        sm9_sign_master_key_info_decrypt_from_pem_windows,
+        sm9_sign_master_key_info_encrypt_to_pem_windows,
+    )
 
 # =============================================================================
 # SM9 Base Types
@@ -73,18 +87,26 @@ class Sm9EncKey(Structure):
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
-        with open_file(path, "rb") as fp:
-            if gmssl.sm9_enc_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp) != 1:
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_enc_key_info_decrypt_from_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "rb") as fp:
+                if gmssl.sm9_enc_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp) != 1:
+                    raise NativeError("libgmssl inner error")
         self._has_private_key = True
 
     def export_encrypted_private_key_info_pem(self, path, passwd):
         if not self._has_private_key:
             raise TypeError("has no private key")
         passwd = passwd.encode("utf-8")
-        with open_file(path, "wb") as fp:
-            if gmssl.sm9_enc_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_enc_key_info_encrypt_to_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "wb") as fp:
+                if gmssl.sm9_enc_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
+                    raise NativeError("libgmssl inner error")
 
     def import_enc_master_public_key_pem(self, path):
         with open_file(path, "rb") as fp:
@@ -167,12 +189,18 @@ class Sm9EncMasterKey(Structure):
 
     def import_encrypted_master_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
-        with open_file(path, "rb") as fp:
-            if (
-                gmssl.sm9_enc_master_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_enc_master_key_info_decrypt_from_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "rb") as fp:
+                if (
+                    gmssl.sm9_enc_master_key_info_decrypt_from_pem(
+                        byref(self), c_char_p(passwd), fp
+                    )
+                    != 1
+                ):
+                    raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
@@ -180,9 +208,16 @@ class Sm9EncMasterKey(Structure):
         if not self._has_private_key:
             raise TypeError("has no master key")
         passwd = passwd.encode("utf-8")
-        with open_file(path, "wb") as fp:
-            if gmssl.sm9_enc_master_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_enc_master_key_info_encrypt_to_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "wb") as fp:
+                if (
+                    gmssl.sm9_enc_master_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp)
+                    != 1
+                ):
+                    raise NativeError("libgmssl inner error")
 
     def export_public_master_key_pem(self, path):
         if not self._has_public_key:
@@ -246,9 +281,13 @@ class Sm9SignKey(Structure):
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
-        with open_file(path, "rb") as fp:
-            if gmssl.sm9_sign_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp) != 1:
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_sign_key_info_decrypt_from_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "rb") as fp:
+                if gmssl.sm9_sign_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp) != 1:
+                    raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
@@ -256,9 +295,13 @@ class Sm9SignKey(Structure):
         if not self._has_private_key:
             raise TypeError("has no private key")
         passwd = passwd.encode("utf-8")
-        with open_file(path, "wb") as fp:
-            if gmssl.sm9_sign_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_sign_key_info_encrypt_to_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "wb") as fp:
+                if gmssl.sm9_sign_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
+                    raise NativeError("libgmssl inner error")
 
     def import_sign_master_public_key_pem(self, path):
         with open_file(path, "rb") as fp:
@@ -304,12 +347,18 @@ class Sm9SignMasterKey(Structure):
 
     def import_encrypted_master_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
-        with open_file(path, "rb") as fp:
-            if (
-                gmssl.sm9_sign_master_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_sign_master_key_info_decrypt_from_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "rb") as fp:
+                if (
+                    gmssl.sm9_sign_master_key_info_decrypt_from_pem(
+                        byref(self), c_char_p(passwd), fp
+                    )
+                    != 1
+                ):
+                    raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
 
@@ -317,12 +366,16 @@ class Sm9SignMasterKey(Structure):
         if not self._has_private_key:
             raise TypeError("has no master key")
         passwd = passwd.encode("utf-8")
-        with open_file(path, "wb") as fp:
-            if (
-                gmssl.sm9_sign_master_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+
+        if sys.platform == "win32":
+            sm9_sign_master_key_info_encrypt_to_pem_windows(self, path, passwd)
+        else:
+            with open_file(path, "wb") as fp:
+                if (
+                    gmssl.sm9_sign_master_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp)
+                    != 1
+                ):
+                    raise NativeError("libgmssl inner error")
 
     def export_public_master_key_pem(self, path):
         if not self._has_public_key:

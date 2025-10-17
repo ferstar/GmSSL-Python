@@ -12,6 +12,7 @@ Internal module for SM2 elliptic curve cryptography.
 This module should not be imported directly by users.
 """
 
+import sys
 from ctypes import Structure, byref, c_char_p, c_size_t, c_uint, c_uint8, create_string_buffer
 
 from gmssl._constants import (
@@ -26,6 +27,13 @@ from gmssl._constants import (
 from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, StateError, gmssl, raise_on_error
 from gmssl._sm3 import Sm3
+
+# Import Windows-compatible PEM functions
+if sys.platform == "win32":
+    from gmssl._pem_utils import (
+        sm2_private_key_info_decrypt_from_pem_windows,
+        sm2_private_key_info_encrypt_to_pem_windows,
+    )
 
 # =============================================================================
 # SM2 Public Key Cryptography
@@ -72,19 +80,31 @@ class Sm2Key(Structure):
         if not self._has_private_key:
             raise TypeError("has no private key")
         passwd = passwd.encode("utf-8")
-        with open_file(path, "wb") as fp:
-            raise_on_error(
-                gmssl.sm2_private_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp),
-                "sm2_private_key_info_encrypt_to_pem",
-            )
+
+        if sys.platform == "win32":
+            # Windows: Use DER + Python file I/O to avoid FILE* cross-DLL issues
+            sm2_private_key_info_encrypt_to_pem_windows(self, path, passwd)
+        else:
+            # Linux/macOS: Use FILE* for best performance
+            with open_file(path, "wb") as fp:
+                raise_on_error(
+                    gmssl.sm2_private_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp),
+                    "sm2_private_key_info_encrypt_to_pem",
+                )
 
     def import_encrypted_private_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
-        with open_file(path, "rb") as fp:
-            raise_on_error(
-                gmssl.sm2_private_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp),
-                "sm2_private_key_info_decrypt_from_pem",
-            )
+
+        if sys.platform == "win32":
+            # Windows: Use DER + Python file I/O to avoid FILE* cross-DLL issues
+            sm2_private_key_info_decrypt_from_pem_windows(self, path, passwd)
+        else:
+            # Linux/macOS: Use FILE* for best performance
+            with open_file(path, "rb") as fp:
+                raise_on_error(
+                    gmssl.sm2_private_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp),
+                    "sm2_private_key_info_decrypt_from_pem",
+                )
         self._has_public_key = True
         self._has_private_key = True
 
