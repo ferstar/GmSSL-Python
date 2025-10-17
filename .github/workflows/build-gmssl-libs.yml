@@ -395,12 +395,7 @@ jobs:
           python -c "from gmssl import GMSSL_LIBRARY_VERSION, GMSSL_PYTHON_VERSION; print(f'GmSSL Library: {GMSSL_LIBRARY_VERSION}'); print(f'Python Binding: {GMSSL_PYTHON_VERSION}')"
 
           echo "=== Loaded library path ==="
-          python -c "
-import gmssl._lib as lib
-import ctypes.util
-print(f'System library: {ctypes.util.find_library(\"gmssl\")}')
-print(f'Using library: {lib.gmssl._name}')
-"
+          python -c "import gmssl._lib as lib; import ctypes.util; print(f'System library: {ctypes.util.find_library(\"gmssl\")}'); print(f'Using library: {lib.gmssl._name}')"
 
       - name: Run tests
         run: pytest tests/ -v -s --tb=short
