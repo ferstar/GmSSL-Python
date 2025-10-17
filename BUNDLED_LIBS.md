@@ -8,9 +8,9 @@ Starting from version 2.2.2, `gmssl-python` includes pre-compiled GmSSL dynamic 
 
 | Platform | Architecture | Library File | Status |
 |----------|-------------|--------------|--------|
-| macOS | arm64 | `libgmssl.3.dylib` | ✅ Included |
-| macOS | x86_64 | `libgmssl.3.dylib` | ⏳ Pending (will be universal binary) |
-| Linux | x86_64 | `libgmssl.so.3` | ⏳ Pending |
+| macOS | arm64 + x86_64 | `libgmssl.3.dylib` | ✅ Included (universal binary) |
+| Linux | x86_64 | `libgmssl.so.3.x86_64` | ⏳ Pending |
+| Linux | aarch64 | `libgmssl.so.3.aarch64` | ⏳ Pending |
 | Windows | x86_64 | `gmssl.dll` | ⏳ Pending |
 
 ## Library Loading Strategy
@@ -90,7 +90,7 @@ file libgmssl.3.dylib
 otool -L libgmssl.3.dylib
 ```
 
-#### Linux
+#### Linux x86_64
 
 ```bash
 # Clone GmSSL
@@ -103,11 +103,59 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
 # Copy library
-cp bin/libgmssl.so.3 ../../GmSSL-Python/src/gmssl/_libs/
+cp bin/libgmssl.so.3 ../../GmSSL-Python/src/gmssl/_libs/libgmssl.so.3.x86_64
+
+# Create symlink (for backward compatibility)
+cd ../../GmSSL-Python/src/gmssl/_libs/
+ln -sf libgmssl.so.3.x86_64 libgmssl.so.3
 
 # Verify
-file ../GmSSL-Python/src/gmssl/_libs/libgmssl.so.3
-ldd ../GmSSL-Python/src/gmssl/_libs/libgmssl.so.3
+file libgmssl.so.3.x86_64
+ldd libgmssl.so.3.x86_64
+```
+
+#### Linux aarch64
+
+```bash
+# On aarch64 machine or using QEMU
+git clone --depth 1 --branch v3.1.1 https://github.com/guanzhi/GmSSL.git
+cd GmSSL
+
+# Build
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+
+# Copy library
+cp bin/libgmssl.so.3 ../../GmSSL-Python/src/gmssl/_libs/libgmssl.so.3.aarch64
+
+# Verify
+file ../../GmSSL-Python/src/gmssl/_libs/libgmssl.so.3.aarch64
+ldd ../../GmSSL-Python/src/gmssl/_libs/libgmssl.so.3.aarch64
+```
+
+**Using Docker for cross-compilation:**
+
+```bash
+# Clone GmSSL
+git clone --depth 1 --branch v3.1.1 https://github.com/guanzhi/GmSSL.git
+
+# Build in ARM64 container
+docker run --rm --platform linux/arm64 \
+  -v $PWD/GmSSL:/workspace \
+  -v $PWD/GmSSL-Python/src/gmssl/_libs:/output \
+  arm64v8/ubuntu:22.04 \
+  bash -c "
+    apt-get update && \
+    apt-get install -y build-essential cmake file && \
+    cd /workspace && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j\$(nproc) && \
+    cp bin/libgmssl.so.3 /output/libgmssl.so.3.aarch64 && \
+    file /output/libgmssl.so.3.aarch64 && \
+    ldd /output/libgmssl.so.3.aarch64
+  "
 ```
 
 #### Windows
@@ -220,9 +268,27 @@ sudo apt-get install build-essential cmake
 - Install Visual Studio 2019 or later
 - Or use Visual Studio Build Tools
 
+## Architecture Detection
+
+The library loading logic automatically detects the system architecture on Linux:
+
+```python
+import platform
+
+machine = platform.machine().lower()
+# Returns: 'x86_64', 'amd64', 'aarch64', 'arm64', etc.
+
+# Library selection:
+# - aarch64/arm64 → libgmssl.so.3.aarch64
+# - x86_64/amd64  → libgmssl.so.3.x86_64
+# - Fallback      → libgmssl.so.3 (symlink)
+```
+
+This ensures the correct library is loaded on multi-architecture systems.
+
 ## Future Improvements
 
-- [ ] Add ARM64 Linux support
+- [x] Add ARM64 Linux support (aarch64)
 - [ ] Add ARM Windows support
 - [ ] Automated version updates via Dependabot
 - [ ] Binary size optimization (strip symbols)

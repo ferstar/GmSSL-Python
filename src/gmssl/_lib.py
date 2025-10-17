@@ -14,6 +14,7 @@ This module should not be imported directly by users.
 
 import os
 import sys
+import platform
 from ctypes import cdll
 from ctypes.util import find_library
 
@@ -52,6 +53,22 @@ def _find_gmssl_library():
     elif sys.platform == "win32":
         lib_name = "gmssl.dll"
     else:  # Linux and other Unix-like systems
+        # Detect architecture for Linux
+        machine = platform.machine().lower()
+        if machine in ("aarch64", "arm64"):
+            # Try aarch64-specific library first
+            lib_name_arch = "libgmssl.so.3.aarch64"
+            bundled_lib_arch = os.path.join(lib_dir, lib_name_arch)
+            if os.path.exists(bundled_lib_arch):
+                return bundled_lib_arch
+        elif machine in ("x86_64", "amd64"):
+            # Try x86_64-specific library first
+            lib_name_arch = "libgmssl.so.3.x86_64"
+            bundled_lib_arch = os.path.join(lib_dir, lib_name_arch)
+            if os.path.exists(bundled_lib_arch):
+                return bundled_lib_arch
+
+        # Fallback to generic symlink (libgmssl.so.3)
         lib_name = "libgmssl.so.3"
 
     bundled_lib = os.path.join(lib_dir, lib_name)
@@ -90,14 +107,22 @@ def _load_gmssl_library():
     # Version too old - if this was system library, try bundled as fallback
     system_lib = find_library("gmssl")
     if lib_path == system_lib:
-        # Try bundled library
+        # Try bundled library with architecture detection
         lib_dir = os.path.join(os.path.dirname(__file__), "_libs")
+
         if sys.platform == "darwin":
             lib_name = "libgmssl.3.dylib"
         elif sys.platform == "win32":
             lib_name = "gmssl.dll"
-        else:
-            lib_name = "libgmssl.so.3"
+        else:  # Linux
+            # Detect architecture
+            machine = platform.machine().lower()
+            if machine in ("aarch64", "arm64"):
+                lib_name = "libgmssl.so.3.aarch64"
+            elif machine in ("x86_64", "amd64"):
+                lib_name = "libgmssl.so.3.x86_64"
+            else:
+                lib_name = "libgmssl.so.3"  # Fallback to generic
 
         bundled_lib = os.path.join(lib_dir, lib_name)
         if os.path.exists(bundled_lib):
@@ -105,6 +130,15 @@ def _load_gmssl_library():
             version = lib.gmssl_version_num()
             if version >= 30101:
                 return lib
+
+        # If arch-specific library not found on Linux, try generic symlink
+        if sys.platform not in ("darwin", "win32"):
+            generic_lib = os.path.join(lib_dir, "libgmssl.so.3")
+            if os.path.exists(generic_lib) and generic_lib != bundled_lib:
+                lib = cdll.LoadLibrary(generic_lib)
+                version = lib.gmssl_version_num()
+                if version >= 30101:
+                    return lib
 
     # No suitable library found
     raise ValueError(
