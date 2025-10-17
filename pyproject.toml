@@ -22,8 +22,12 @@ classifiers = [
 "Homepage" = "https://gmssl.github.io/GmSSL-Python/"
 "Bug Tracker" = "https://github.com/GmSSL/GmSSL-Python/issues"
 
+# Standard Python package structure with src/ layout
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.uv]
-package = false
+package = true
 compile-bytecode = true
 concurrent-downloads = 4
 
