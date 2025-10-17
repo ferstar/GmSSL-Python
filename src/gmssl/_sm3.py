@@ -111,7 +111,7 @@ def sm3_pbkdf2(passwd, salt, iterator, keylen):
     key = create_string_buffer(keylen)
 
     if (
-        gmssl.pbkdf2_hmac_sm3_genkey(
+        gmssl.sm3_pbkdf2(
             c_char_p(passwd),
             c_size_t(len(passwd)),
             salt,

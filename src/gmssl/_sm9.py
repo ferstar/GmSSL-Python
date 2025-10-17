@@ -392,9 +392,10 @@ class Sm9Signature(Structure):
         if not sign_key.has_private_key():
             raise TypeError("has no private key")
         sig = create_string_buffer(SM9_SIGNATURE_SIZE)
-        if gmssl.sm9_sign_finish(byref(self), byref(sign_key), sig) != 1:
+        siglen = c_size_t(SM9_SIGNATURE_SIZE)
+        if gmssl.sm9_sign_finish(byref(self), byref(sign_key), sig, byref(siglen)) != 1:
             raise NativeError("libgmssl inner error")
-        return sig.raw
+        return sig[:siglen.value]
 
     def verify(self, signature, public_master_key, signer_id):
         if self._sign != DO_VERIFY:
