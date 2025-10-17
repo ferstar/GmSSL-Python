@@ -293,9 +293,6 @@ jobs:
           # Linux aarch64
           cp downloaded-libs/gmssl-linux-aarch64/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.aarch64
 
-          # Create symlink for default Linux library (x86_64 for compatibility)
-          ln -sf libgmssl.so.3.x86_64 src/gmssl/_libs/libgmssl.so.3
-
           # macOS universal binary (already created by create-macos-universal job)
           cp downloaded-libs/gmssl-macos-universal/libgmssl.3.dylib src/gmssl/_libs/
 
