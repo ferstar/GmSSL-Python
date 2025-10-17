@@ -48,8 +48,8 @@ jobs:
               yum install -y cmake3 gcc gcc-c++ make file binutils && \
               ln -sf /usr/bin/cmake3 /usr/bin/cmake && \
               cd /workspace && \
-              mkdir -p build && cd build && \
-              cmake .. -DCMAKE_BUILD_TYPE=Release && \
+              rm -rf build && mkdir build && cd build && \
+              cmake .. && \
               make -j\$(nproc) && \
               mkdir -p /artifacts/linux-x86_64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-x86_64/ && \
@@ -59,6 +59,8 @@ jobs:
               ls -lh /artifacts/linux-x86_64/libgmssl.so.3 && \
               echo '=== GLIBC version requirement ===' && \
               objdump -T /artifacts/linux-x86_64/libgmssl.so.3 | grep GLIBC | awk '{print \$5}' | sort -Vu && \
+              echo '=== SM3 PBKDF2 symbol check ===' && \
+              nm -D /artifacts/linux-x86_64/libgmssl.so.3 | grep sm3_pbkdf2 || echo 'WARNING: sm3_pbkdf2 symbol not found!' && \
               echo '=== SM9 symbols check ===' && \
               nm -D /artifacts/linux-x86_64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
             "
@@ -93,20 +95,28 @@ jobs:
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
-      - name: Build GmSSL in ARM64 manylinux container
+      - name: Build GmSSL in ARM64 Ubuntu container
         run: |
-          # Use manylinux2014 (GLIBC 2.17) for maximum compatibility
+          # Use Ubuntu 18.04 ARM64 (GLIBC 2.27) for good compatibility
+          # This ensures the library works on Ubuntu 18.04+, Debian 10+
           docker run --rm --platform linux/arm64 \
             -v $PWD/GmSSL:/workspace \
             -v $PWD/artifacts:/artifacts \
-            quay.io/pypa/manylinux2014_aarch64 \
+            arm64v8/ubuntu:18.04 \
             bash -c "
-              yum install -y cmake3 gcc gcc-c++ make file binutils && \
-              ln -sf /usr/bin/cmake3 /usr/bin/cmake && \
+              # Install build dependencies
+              export DEBIAN_FRONTEND=noninteractive && \
+              apt-get update && \
+              apt-get install -y cmake gcc g++ make file binutils git && \
+              cmake --version && \
+
+              # Build GmSSL
               cd /workspace && \
-              mkdir -p build && cd build && \
-              cmake .. -DCMAKE_BUILD_TYPE=Release && \
+              rm -rf build && mkdir build && cd build && \
+              cmake .. && \
               make -j\$(nproc) && \
+
+              # Copy and verify library
               mkdir -p /artifacts/linux-aarch64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-aarch64/ && \
               echo '=== Library info ===' && \
@@ -115,6 +125,8 @@ jobs:
               ls -lh /artifacts/linux-aarch64/libgmssl.so.3 && \
               echo '=== GLIBC version requirement ===' && \
               objdump -T /artifacts/linux-aarch64/libgmssl.so.3 | grep GLIBC | awk '{print \$5}' | sort -Vu && \
+              echo '=== SM3 PBKDF2 symbol check ===' && \
+              nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep sm3_pbkdf2 || echo 'WARNING: sm3_pbkdf2 symbol not found!' && \
               echo '=== SM9 symbols check ===' && \
               nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
             "
@@ -152,7 +164,7 @@ jobs:
         run: |
           cd GmSSL
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
+          cmake .. \
                    -DCMAKE_OSX_ARCHITECTURES=arm64 \
                    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           make -j$(sysctl -n hw.ncpu)
@@ -199,8 +211,7 @@ jobs:
         run: |
           cd GmSSL
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
-                   -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+          cmake .. -DCMAKE_OSX_ARCHITECTURES=x86_64 \
                    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           make -j$(sysctl -n hw.ncpu)
 
@@ -246,7 +257,7 @@ jobs:
           cd GmSSL
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -A x64
+          cmake .. -A x64
           cmake --build . --config Release
 
       - name: Copy library
