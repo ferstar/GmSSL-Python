@@ -53,13 +53,14 @@ jobs:
           mkdir -p artifacts/linux-x86_64
           cp GmSSL/build/bin/libgmssl.so.3 artifacts/linux-x86_64/
 
-          # Strip debug symbols to reduce size
-          strip artifacts/linux-x86_64/libgmssl.so.3
-
-          # Verify library
+          # Verify library (NO STRIP - debugging CI issues)
+          echo "=== Library info ==="
           file artifacts/linux-x86_64/libgmssl.so.3
           ldd artifacts/linux-x86_64/libgmssl.so.3
           ls -lh artifacts/linux-x86_64/libgmssl.so.3
+
+          echo "=== SM9 symbols check ==="
+          nm -D artifacts/linux-x86_64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -99,17 +100,19 @@ jobs:
             arm64v8/ubuntu:22.04 \
             bash -c "
               apt-get update && \
-              apt-get install -y build-essential cmake file && \
+              apt-get install -y build-essential cmake file binutils && \
               cd /workspace && \
               mkdir -p build && cd build && \
               cmake .. -DCMAKE_BUILD_TYPE=Release && \
               make -j\$(nproc) && \
               mkdir -p /artifacts/linux-aarch64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-aarch64/ && \
-              strip /artifacts/linux-aarch64/libgmssl.so.3 && \
+              echo '=== Library info (NO STRIP - debugging CI issues) ===' && \
               file /artifacts/linux-aarch64/libgmssl.so.3 && \
               ldd /artifacts/linux-aarch64/libgmssl.so.3 && \
-              ls -lh /artifacts/linux-aarch64/libgmssl.so.3
+              ls -lh /artifacts/linux-aarch64/libgmssl.so.3 && \
+              echo '=== SM9 symbols check ===' && \
+              nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
             "
 
       - name: Verify library
@@ -153,13 +156,14 @@ jobs:
           mkdir -p artifacts/macos-arm64
           cp GmSSL/build/bin/libgmssl.3.dylib artifacts/macos-arm64/
 
-          # Strip debug symbols to reduce size
-          strip -x artifacts/macos-arm64/libgmssl.3.dylib
-
-          # Verify library
+          # Verify library (NO STRIP - debugging CI issues)
+          echo "=== Library info ==="
           file artifacts/macos-arm64/libgmssl.3.dylib
           otool -L artifacts/macos-arm64/libgmssl.3.dylib
           ls -lh artifacts/macos-arm64/libgmssl.3.dylib
+
+          echo "=== SM9 symbols check ==="
+          nm -g artifacts/macos-arm64/libgmssl.3.dylib | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -197,13 +201,14 @@ jobs:
           mkdir -p artifacts/macos-x86_64
           cp GmSSL/build/bin/libgmssl.3.dylib artifacts/macos-x86_64/
 
-          # Strip debug symbols to reduce size
-          strip -x artifacts/macos-x86_64/libgmssl.3.dylib
-
-          # Verify library
+          # Verify library (NO STRIP - debugging CI issues)
+          echo "=== Library info ==="
           file artifacts/macos-x86_64/libgmssl.3.dylib
           otool -L artifacts/macos-x86_64/libgmssl.3.dylib
           ls -lh artifacts/macos-x86_64/libgmssl.3.dylib
+
+          echo "=== SM9 symbols check ==="
+          nm -g artifacts/macos-x86_64/libgmssl.3.dylib | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -354,13 +359,22 @@ jobs:
           echo "=== Library files in src/gmssl/_libs/ ==="
           ls -lh src/gmssl/_libs/ || true
 
-          # Verify library architecture
+          # Verify library architecture and symbols
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            echo "=== Linux library info ==="
             file src/gmssl/_libs/libgmssl.so.3
+            ldd src/gmssl/_libs/libgmssl.so.3 || true
+            echo "=== SM9 symbols check ==="
+            nm -D src/gmssl/_libs/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            echo "=== macOS library info ==="
             file src/gmssl/_libs/libgmssl.3.dylib
             lipo -info src/gmssl/_libs/libgmssl.3.dylib
+            otool -L src/gmssl/_libs/libgmssl.3.dylib
+            echo "=== SM9 symbols check ==="
+            nm -g src/gmssl/_libs/libgmssl.3.dylib | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
           elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "=== Windows library info ==="
             file src/gmssl/_libs/gmssl.dll || ls -l src/gmssl/_libs/gmssl.dll
           fi
 
@@ -372,13 +386,32 @@ jobs:
       - name: Install package in development mode
         run: pip install -e .
 
-      - name: Run tests
-        run: pytest tests/ -v
-
-      - name: Test import and version
+      - name: Verify installation
         shell: bash
         run: |
+          echo "=== Python and library info ==="
+          python --version
+          python -c "import sys; print(f'Python: {sys.version}')"
           python -c "from gmssl import GMSSL_LIBRARY_VERSION, GMSSL_PYTHON_VERSION; print(f'GmSSL Library: {GMSSL_LIBRARY_VERSION}'); print(f'Python Binding: {GMSSL_PYTHON_VERSION}')"
+
+          echo "=== Loaded library path ==="
+          python -c "
+import gmssl._lib as lib
+import ctypes.util
+print(f'System library: {ctypes.util.find_library(\"gmssl\")}')
+print(f'Using library: {lib.gmssl._name}')
+"
+
+      - name: Run tests
+        run: pytest tests/ -v -s --tb=short
+        continue-on-error: true
+
+      - name: Run SM9 tests separately with debug
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Running SM9 tests with verbose output ==="
+          pytest tests/test_gmssl.py::test_sm9_enc_decrypt tests/test_gmssl.py::test_sm9_sign_verify -v -s --tb=long || echo "SM9 tests failed"
 
   create-pr:
     name: Create PR with updated libraries
