@@ -46,12 +46,17 @@ pip install gmssl-python
 ```
 
 **支持的平台：**
-- ✅ Linux x86_64
-- ✅ Linux aarch64 (ARM64)
-- ✅ macOS (arm64 + x86_64 通用二进制)
-- ✅ Windows x86_64
+- ✅ **Linux x86_64** (GLIBC 2.17+) - Ubuntu 14.04+, Debian 8+, RHEL 7+
+- ✅ **Linux aarch64** (GLIBC 2.17+) - ARM64 服务器和开发板
+- ✅ **macOS** (11.0+) - Intel 和 Apple Silicon 通用二进制
+- ✅ **Windows x86_64** - Windows 10/11
 
 安装后即可直接使用，无需额外安装 GmSSL 库。
+
+**系统要求：**
+- Linux: GLIBC 2.17 或更高版本（2012 年发布，几乎所有现代发行版都满足）
+- macOS: macOS 11.0 (Big Sur) 或更高版本
+- Windows: Windows 10 或更高版本
 
 ### 库加载优先级
 

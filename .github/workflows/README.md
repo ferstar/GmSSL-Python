@@ -17,9 +17,13 @@ The `build-gmssl-libs.yml` workflow builds GmSSL dynamic libraries for multiple 
 
 ### Supported Platforms
 
-- **Linux**: x86_64 (`libgmssl.so.3`)
+- **Linux**: x86_64, aarch64 (`libgmssl.so.3`)
+  - Built with manylinux_2_28 (glibc 2.28+)
+  - Compatible with Ubuntu 20.04+, Debian 11+, RHEL 8+, etc.
 - **macOS**: Universal binary arm64 + x86_64 (`libgmssl.3.dylib`)
+  - Compatible with macOS 11.0+
 - **Windows**: x86_64 (`gmssl.dll`)
+  - Compatible with Windows 10+
 
 ### How to Use
 
@@ -34,8 +38,8 @@ The `build-gmssl-libs.yml` workflow builds GmSSL dynamic libraries for multiple 
 ### What Happens
 
 1. **Build Stage**: Compiles GmSSL for each platform in parallel
-   - Linux x86_64: Ubuntu latest with GCC
-   - Linux aarch64: Ubuntu with QEMU (ARM64 emulation)
+   - Linux x86_64: manylinux_2_28 container (glibc 2.28) - wide compatibility
+   - Linux aarch64: manylinux_2_28 container (glibc 2.28) - wide compatibility
    - macOS arm64: macOS latest (M1/M2)
    - macOS x86_64: macOS 13 (Intel)
    - Windows x86_64: Windows latest with MSVC

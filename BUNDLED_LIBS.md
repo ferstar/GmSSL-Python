@@ -6,12 +6,33 @@ Starting from version 2.2.2, `gmssl-python` includes pre-compiled GmSSL dynamic 
 
 ## Supported Platforms
 
-| Platform | Architecture | Library File | Status |
-|----------|-------------|--------------|--------|
-| macOS | arm64 + x86_64 | `libgmssl.3.dylib` | ✅ Included (universal binary) |
-| Linux | x86_64 | `libgmssl.so.3.x86_64` | ⏳ Pending |
-| Linux | aarch64 | `libgmssl.so.3.aarch64` | ⏳ Pending |
-| Windows | x86_64 | `gmssl.dll` | ⏳ Pending |
+| Platform | Architecture | Library File | GLIBC | Status |
+|----------|-------------|--------------|-------|--------|
+| macOS | arm64 + x86_64 | `libgmssl.3.dylib` | N/A | ✅ Included (universal binary) |
+| Linux | x86_64 | `libgmssl.so.3.x86_64` | 2.17+ | ✅ Included (manylinux2014) |
+| Linux | aarch64 | `libgmssl.so.3.aarch64` | 2.17+ | ✅ Included (manylinux2014) |
+| Windows | x86_64 | `gmssl.dll` | N/A | ✅ Included |
+
+### Linux Compatibility
+
+The Linux libraries are built using **manylinux2014** containers, which ensures compatibility with:
+
+- ✅ **Ubuntu**: 14.04 LTS and later (including 22.04 LTS, 24.04 LTS)
+- ✅ **Debian**: 8 (Jessie) and later (including 11, 12)
+- ✅ **RHEL/CentOS**: 7 and later (including Rocky Linux 8, 9)
+- ✅ **Fedora**: All recent versions
+- ✅ **Arch Linux**: All versions
+- ✅ **Other distributions**: Any with GLIBC 2.17 or later
+
+**Minimum Requirements**:
+- GLIBC 2.17 or later (released in 2012)
+- Only depends on `libc.so.6` (no other external dependencies)
+
+### macOS Compatibility
+
+The macOS library is a universal binary supporting:
+- ✅ **macOS 11.0 (Big Sur)** and later
+- ✅ Both **Intel (x86_64)** and **Apple Silicon (arm64)** Macs
 
 ## Library Loading Strategy
 
@@ -182,6 +203,8 @@ dir ..\..\GmSSL-Python\src\gmssl\_libs\gmssl.dll
 
 After building or updating libraries, verify they work correctly:
 
+### Basic Verification
+
 ```bash
 # Test library loading
 python -c "
@@ -198,6 +221,28 @@ pytest tests/ -v
 # Build wheel and verify library is included
 python -m build --wheel
 unzip -l dist/gmssl_python-*.whl | grep -E "(\.dylib|\.so|\.dll)"
+```
+
+### Compatibility Verification
+
+Compatibility is automatically verified in CI by testing on:
+- **Ubuntu 22.04 LTS** (GLIBC 2.35) - Critical LTS version
+- **Ubuntu latest** (GLIBC 2.39+) - Latest stable
+- **macOS latest** - Both Intel and Apple Silicon
+- **Windows latest** - Windows 10/11
+
+If all CI tests pass, the library is compatible with the target platforms.
+
+### Check GLIBC Requirements
+
+```bash
+# Check maximum GLIBC version required
+objdump -T src/gmssl/_libs/libgmssl.so.3.x86_64 | grep GLIBC | awk '{print $5}' | sort -Vu | tail -1
+
+# Should output: GLIBC_2.17 (or lower for maximum compatibility)
+
+# Check external dependencies (should only depend on libc.so.6)
+readelf -d src/gmssl/_libs/libgmssl.so.3.x86_64 | grep NEEDED
 ```
 
 ## License

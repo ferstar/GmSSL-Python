@@ -31,36 +31,42 @@ jobs:
       - name: Checkout GmSSL-Python
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake
-
       - name: Clone GmSSL
         run: |
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
-      - name: Build GmSSL
+      - name: Build GmSSL in x86_64 manylinux container
         run: |
-          cd GmSSL
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
+          # Use manylinux2014 (GLIBC 2.17) for maximum compatibility
+          # This ensures the library works on Ubuntu 14.04+, Debian 8+, RHEL 7+
+          docker run --rm --platform linux/amd64 \
+            -v $PWD/GmSSL:/workspace \
+            -v $PWD/artifacts:/artifacts \
+            quay.io/pypa/manylinux2014_x86_64 \
+            bash -c "
+              yum install -y cmake3 gcc gcc-c++ make file binutils && \
+              ln -sf /usr/bin/cmake3 /usr/bin/cmake && \
+              cd /workspace && \
+              mkdir -p build && cd build && \
+              cmake .. -DCMAKE_BUILD_TYPE=Release && \
+              make -j\$(nproc) && \
+              mkdir -p /artifacts/linux-x86_64 && \
+              cp bin/libgmssl.so.3 /artifacts/linux-x86_64/ && \
+              echo '=== Library info ===' && \
+              file /artifacts/linux-x86_64/libgmssl.so.3 && \
+              ldd /artifacts/linux-x86_64/libgmssl.so.3 || true && \
+              ls -lh /artifacts/linux-x86_64/libgmssl.so.3 && \
+              echo '=== GLIBC version requirement ===' && \
+              objdump -T /artifacts/linux-x86_64/libgmssl.so.3 | grep GLIBC | awk '{print \$5}' | sort -Vu && \
+              echo '=== SM9 symbols check ===' && \
+              nm -D /artifacts/linux-x86_64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
+            "
 
-      - name: Copy library
+      - name: Verify library
         run: |
-          mkdir -p artifacts/linux-x86_64
-          cp GmSSL/build/bin/libgmssl.so.3 artifacts/linux-x86_64/
-
-          # Verify library (NO STRIP - debugging CI issues)
-          echo "=== Library info ==="
           file artifacts/linux-x86_64/libgmssl.so.3
-          ldd artifacts/linux-x86_64/libgmssl.so.3
           ls -lh artifacts/linux-x86_64/libgmssl.so.3
-
-          echo "=== SM9 symbols check ==="
-          nm -D artifacts/linux-x86_64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -82,35 +88,33 @@ jobs:
         with:
           platforms: arm64
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static
-
       - name: Clone GmSSL
         run: |
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
-      - name: Build GmSSL in ARM64 container
+      - name: Build GmSSL in ARM64 manylinux container
         run: |
+          # Use manylinux2014 (GLIBC 2.17) for maximum compatibility
           docker run --rm --platform linux/arm64 \
             -v $PWD/GmSSL:/workspace \
             -v $PWD/artifacts:/artifacts \
-            arm64v8/ubuntu:22.04 \
+            quay.io/pypa/manylinux2014_aarch64 \
             bash -c "
-              apt-get update && \
-              apt-get install -y build-essential cmake file binutils && \
+              yum install -y cmake3 gcc gcc-c++ make file binutils && \
+              ln -sf /usr/bin/cmake3 /usr/bin/cmake && \
               cd /workspace && \
               mkdir -p build && cd build && \
               cmake .. -DCMAKE_BUILD_TYPE=Release && \
               make -j\$(nproc) && \
               mkdir -p /artifacts/linux-aarch64 && \
               cp bin/libgmssl.so.3 /artifacts/linux-aarch64/ && \
-              echo '=== Library info (NO STRIP - debugging CI issues) ===' && \
+              echo '=== Library info ===' && \
               file /artifacts/linux-aarch64/libgmssl.so.3 && \
-              ldd /artifacts/linux-aarch64/libgmssl.so.3 && \
+              ldd /artifacts/linux-aarch64/libgmssl.so.3 || true && \
               ls -lh /artifacts/linux-aarch64/libgmssl.so.3 && \
+              echo '=== GLIBC version requirement ===' && \
+              objdump -T /artifacts/linux-aarch64/libgmssl.so.3 | grep GLIBC | awk '{print \$5}' | sort -Vu && \
               echo '=== SM9 symbols check ===' && \
               nm -D /artifacts/linux-aarch64/libgmssl.so.3 | grep -i sm9_sign | head -5 || echo 'No SM9 symbols found'
             "
@@ -148,7 +152,9 @@ jobs:
         run: |
           cd GmSSL
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                   -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           make -j$(sysctl -n hw.ncpu)
 
       - name: Copy library
@@ -193,7 +199,9 @@ jobs:
         run: |
           cd GmSSL
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+                   -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           make -j$(sysctl -n hw.ncpu)
 
       - name: Copy library
@@ -301,10 +309,17 @@ jobs:
     strategy:
       fail-fast: false  # Continue testing other combinations even if one fails
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, ubuntu-22.04, macos-latest, windows-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
         exclude:
-          # Only test all Python versions on Linux to save CI time
+          # Only test all Python versions on ubuntu-latest to save CI time
+          # ubuntu-22.04 tests Python 3.8 and 3.12 (LTS compatibility check)
+          - os: ubuntu-22.04
+            python-version: '3.9'
+          - os: ubuntu-22.04
+            python-version: '3.10'
+          - os: ubuntu-22.04
+            python-version: '3.11'
           # macOS and Windows only test latest Python
           - os: macos-latest
             python-version: '3.8'
@@ -389,17 +404,24 @@ jobs:
       - name: Verify installation
         shell: bash
         run: |
+          echo "=== System info ==="
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ] || [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            echo "OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"')"
+            echo "GLIBC: $(ldd --version | head -1)"
+          fi
+
+          echo ""
           echo "=== Python and library info ==="
           python --version
           python -c "import sys; print(f'Python: {sys.version}')"
           python -c "from gmssl import GMSSL_LIBRARY_VERSION, GMSSL_PYTHON_VERSION; print(f'GmSSL Library: {GMSSL_LIBRARY_VERSION}'); print(f'Python Binding: {GMSSL_PYTHON_VERSION}')"
 
+          echo ""
           echo "=== Loaded library path ==="
           python -c "import gmssl._lib as lib; import ctypes.util; print(f'System library: {ctypes.util.find_library(\"gmssl\")}'); print(f'Using library: {lib.gmssl._name}')"
 
       - name: Run tests
         run: pytest tests/ -v -s --tb=short
-        continue-on-error: true
 
       - name: Run SM9 tests separately with debug
         if: always()
