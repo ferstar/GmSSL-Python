@@ -14,9 +14,9 @@ on:
   workflow_dispatch:
     inputs:
       gmssl_version:
-        description: 'GmSSL version to build (e.g., 3.1.1)'
+        description: 'GmSSL version to build (e.g., 3.1.1, master, or commit hash)'
         required: true
-        default: '3.1.1'
+        default: 'master'
       gmssl_repo:
         description: 'GmSSL repository URL'
         required: true
@@ -33,7 +33,7 @@ jobs:
 
       - name: Clone GmSSL
         run: |
-          git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
+          git clone --depth 1 --branch ${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
       - name: Build GmSSL in x86_64 manylinux container
@@ -92,7 +92,7 @@ jobs:
 
       - name: Clone GmSSL
         run: |
-          git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
+          git clone --depth 1 --branch ${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
       - name: Build GmSSL in ARM64 manylinux container
@@ -103,7 +103,7 @@ jobs:
             -v $PWD/artifacts:/artifacts \
             quay.io/pypa/manylinux2014_aarch64 \
             bash -c "
-              yum install -y gcc gcc-c++ make file binutils wget && \
+              yum install -y gcc gcc-c++ make file binutils && \
               cmake --version && \
               cd /workspace && \
               rm -rf build && mkdir build && cd build && \
@@ -149,7 +149,7 @@ jobs:
 
       - name: Clone GmSSL
         run: |
-          git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
+          git clone --depth 1 --branch ${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
       - name: Build GmSSL
@@ -197,7 +197,7 @@ jobs:
 
       - name: Clone GmSSL
         run: |
-          git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
+          git clone --depth 1 --branch ${{ github.event.inputs.gmssl_version }} \
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
       - name: Build GmSSL
@@ -244,7 +244,7 @@ jobs:
 
       - name: Clone GmSSL
         run: |
-          git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} `
+          git clone --depth 1 --branch ${{ github.event.inputs.gmssl_version }} `
             ${{ github.event.inputs.gmssl_repo }} GmSSL
 
       - name: Build GmSSL
