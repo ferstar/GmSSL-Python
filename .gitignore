@@ -130,7 +130,8 @@ dmypy.json
 *.pem
 .DS_Store
 
-# Local GmSSL installation
+# Local GmSSL installation and source
 gm/
+GmSSL/
 
 .idea/

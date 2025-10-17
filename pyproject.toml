@@ -26,6 +26,15 @@ classifiers = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Include bundled GmSSL dynamic libraries in the package
+# This allows pip users to use gmssl_python without installing GmSSL separately
+[tool.setuptools.package-data]
+gmssl = [
+    "_libs/*.dylib",   # macOS
+    "_libs/*.so*",     # Linux (includes .so, .so.3, .so.3.1, etc.)
+    "_libs/*.dll",     # Windows
+]
+
 [tool.uv]
 package = true
 compile-bytecode = true
