@@ -182,10 +182,10 @@ def sm9_enc_master_public_key_to_pem_windows(mpk, path):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
-    if gmssl.sm9_enc_master_public_key_to_der(byref(mpk), byref(buf_ptr), byref(outlen)) != 1:
+    if gmssl.sm9_enc_master_public_key_to_der(byref(mpk), byref(p), byref(outlen)) != 1:
         raise NativeError("sm9_enc_master_public_key_to_der failed")
 
     _write_pem_windows(path, "SM9 ENC MASTER PUBLIC KEY", buf.raw[: outlen.value])
@@ -210,12 +210,12 @@ def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
     if (
         gmssl.sm9_enc_master_key_info_encrypt_to_der(
-            byref(msk), c_char_p(passwd), byref(buf_ptr), byref(outlen)
+            byref(msk), c_char_p(passwd), byref(p), byref(outlen)
         )
         != 1
     ):
@@ -253,10 +253,10 @@ def sm9_sign_master_public_key_to_pem_windows(mpk, path):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
-    if gmssl.sm9_sign_master_public_key_to_der(byref(mpk), byref(buf_ptr), byref(outlen)) != 1:
+    if gmssl.sm9_sign_master_public_key_to_der(byref(mpk), byref(p), byref(outlen)) != 1:
         raise NativeError("sm9_sign_master_public_key_to_der failed")
 
     _write_pem_windows(path, "SM9 SIGN MASTER PUBLIC KEY", buf.raw[: outlen.value])
@@ -281,12 +281,12 @@ def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
     if (
         gmssl.sm9_sign_master_key_info_encrypt_to_der(
-            byref(msk), c_char_p(passwd), byref(buf_ptr), byref(outlen)
+            byref(msk), c_char_p(passwd), byref(p), byref(outlen)
         )
         != 1
     ):
@@ -324,13 +324,11 @@ def sm9_enc_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
     if (
-        gmssl.sm9_enc_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(buf_ptr), byref(outlen)
-        )
+        gmssl.sm9_enc_key_info_encrypt_to_der(byref(key), c_char_p(passwd), byref(p), byref(outlen))
         != 1
     ):
         raise NativeError("sm9_enc_key_info_encrypt_to_der failed")
@@ -367,12 +365,12 @@ def sm9_sign_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
     if (
         gmssl.sm9_sign_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(buf_ptr), byref(outlen)
+            byref(key), c_char_p(passwd), byref(p), byref(outlen)
         )
         != 1
     ):
