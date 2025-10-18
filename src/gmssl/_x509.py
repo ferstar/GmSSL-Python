@@ -13,11 +13,13 @@ This module should not be imported directly by users.
 """
 
 import datetime
+import sys
 from ctypes import byref, c_char_p, c_int, c_size_t, c_ulong, c_void_p, create_string_buffer
 
 from gmssl._constants import _ASN1_TAG_SEQUENCE, _ASN1_TAG_SET, _ASN1_TAG_IA5String
 from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, gmssl, libc
+from gmssl._pem_utils import x509_cert_from_pem_windows, x509_cert_to_pem_windows
 from gmssl._sm2 import Sm2Key
 
 # =============================================================================
@@ -107,22 +109,36 @@ class Validity:
 
 class Sm2Certificate:
     def import_pem(self, path):
-        cert = c_void_p()
-        certlen = c_size_t()
-        if gmssl.x509_cert_new_from_file(byref(cert), byref(certlen), path.encode("utf-8")) != 1:
-            raise NativeError("libgmssl inner error")
+        if sys.platform == "win32":
+            # Windows: Use Python-based PEM reading to avoid FILE* issues
+            cert_data, cert_len = x509_cert_from_pem_windows(path)
+            self._cert = cert_data
+        else:
+            # Linux/macOS: Use FILE* for best performance
+            cert = c_void_p()
+            certlen = c_size_t()
+            if (
+                gmssl.x509_cert_new_from_file(byref(cert), byref(certlen), path.encode("utf-8"))
+                != 1
+            ):
+                raise NativeError("libgmssl inner error")
 
-        self._cert = create_string_buffer(certlen.value)
-        libc.memcpy(self._cert, cert, certlen)
-        libc.free(cert)
+            self._cert = create_string_buffer(certlen.value)
+            libc.memcpy(self._cert, cert, certlen)
+            libc.free(cert)
 
     def get_raw(self):
         return self._cert
 
     def export_pem(self, path):
-        with open_file(path, "wb") as fp:
-            if gmssl.x509_cert_to_pem(self._cert, c_size_t(len(self._cert)), fp) != 1:
-                raise NativeError("libgmssl inner error")
+        if sys.platform == "win32":
+            # Windows: Use Python-based PEM writing to avoid FILE* issues
+            x509_cert_to_pem_windows(self._cert, len(self._cert), path)
+        else:
+            # Linux/macOS: Use FILE* for best performance
+            with open_file(path, "wb") as fp:
+                if gmssl.x509_cert_to_pem(self._cert, c_size_t(len(self._cert)), fp) != 1:
+                    raise NativeError("libgmssl inner error")
 
     def get_serial_number(self):
         serial_ptr = c_void_p()

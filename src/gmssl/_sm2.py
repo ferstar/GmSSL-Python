@@ -23,11 +23,15 @@ from gmssl._constants import (
     SM2_MAX_SIGNATURE_SIZE,
     SM3_DIGEST_SIZE,
 )
-from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, StateError, gmssl, raise_on_error
 
-# Import cross-platform PEM wrapper
-from gmssl._pem_utils import pem_export_encrypted_key, pem_import_encrypted_key
+# Import cross-platform PEM wrappers
+from gmssl._pem_utils import (
+    pem_export_encrypted_key,
+    pem_export_public_key,
+    pem_import_encrypted_key,
+    pem_import_public_key,
+)
 from gmssl._sm3 import Sm3
 
 # =============================================================================
@@ -86,14 +90,10 @@ class Sm2Key(Structure):
     def export_public_key_info_pem(self, path):
         if not self._has_public_key:
             raise TypeError("has no public key")
-        with open_file(path, "wb") as fp:
-            if gmssl.sm2_public_key_info_to_pem(byref(self), fp) != 1:
-                raise NativeError("libgmssl inner error")
+        pem_export_public_key(self, path, "sm2_public_key_info_to_pem")
 
     def import_public_key_info_pem(self, path):
-        with open_file(path, "rb") as fp:
-            if gmssl.sm2_public_key_info_from_pem(byref(self), fp) != 1:
-                raise NativeError("libgmssl inner error")
+        pem_import_public_key(self, path, "sm2_public_key_info_from_pem")
         self._has_public_key = True
         self._has_private_key = False
 

@@ -83,7 +83,39 @@ def _read_pem_windows(path, name):
 
 
 # =============================================================================
-# SM2 Key PEM Operations
+# SM2 Public Key PEM Operations
+# =============================================================================
+
+
+def sm2_public_key_info_to_pem_windows(key, path):
+    """
+    Export SM2 public key to PEM file (Windows-compatible).
+    """
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(512)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
+
+    if gmssl.sm2_public_key_info_to_der(byref(key), byref(buf_ptr), byref(outlen)) != 1:
+        raise NativeError("sm2_public_key_info_to_der failed")
+
+    _write_pem_windows(path, "PUBLIC KEY", buf.raw[: outlen.value])
+
+
+def sm2_public_key_info_from_pem_windows(key, path):
+    """
+    Import SM2 public key from PEM file (Windows-compatible).
+    """
+    der_data = _read_pem_windows(path, "PUBLIC KEY")
+    der_ptr = c_char_p(der_data)
+    der_len = c_size_t(len(der_data))
+
+    if gmssl.sm2_public_key_info_from_der(byref(key), byref(der_ptr), byref(der_len)) != 1:
+        raise NativeError("sm2_public_key_info_from_der failed")
+
+
+# =============================================================================
+# SM2 Private Key PEM Operations
 # =============================================================================
 
 
@@ -93,28 +125,20 @@ def sm2_private_key_info_encrypt_to_pem_windows(key, path, passwd):
 
     Uses DER export + Python file I/O to avoid FILE* cross-DLL issues.
     """
-    # Export to DER format
-    out_ptr = c_void_p()
-    outlen = c_size_t()
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
 
     if (
         gmssl.sm2_private_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(out_ptr), byref(outlen)
+            byref(key), c_char_p(passwd), byref(buf_ptr), byref(outlen)
         )
         != 1
     ):
         raise NativeError("sm2_private_key_info_encrypt_to_der failed")
 
-    try:
-        # Copy DER data to Python bytes
-        der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen.value)
-
-        # Write PEM file
-        _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
-    finally:
-        # Free allocated memory
-        libc.free(out_ptr)
+    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm2_private_key_info_decrypt_from_pem_windows(key, path, passwd):
@@ -153,23 +177,20 @@ def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     Export SM9 encryption master key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
-    outlen = c_size_t()
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
 
     if (
         gmssl.sm9_enc_master_key_info_encrypt_to_der(
-            byref(msk), c_char_p(passwd), byref(out_ptr), byref(outlen)
+            byref(msk), c_char_p(passwd), byref(buf_ptr), byref(outlen)
         )
         != 1
     ):
         raise NativeError("sm9_enc_master_key_info_encrypt_to_der failed")
 
-    try:
-        der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen.value)
-        _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
-    finally:
-        libc.free(out_ptr)
+    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm9_enc_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
@@ -198,23 +219,20 @@ def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     Export SM9 signature master key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
-    outlen = c_size_t()
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
 
     if (
         gmssl.sm9_sign_master_key_info_encrypt_to_der(
-            byref(msk), c_char_p(passwd), byref(out_ptr), byref(outlen)
+            byref(msk), c_char_p(passwd), byref(buf_ptr), byref(outlen)
         )
         != 1
     ):
         raise NativeError("sm9_sign_master_key_info_encrypt_to_der failed")
 
-    try:
-        der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen.value)
-        _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
-    finally:
-        libc.free(out_ptr)
+    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm9_sign_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
@@ -243,23 +261,20 @@ def sm9_enc_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     Export SM9 encryption key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
-    outlen = c_size_t()
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
 
     if (
         gmssl.sm9_enc_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(out_ptr), byref(outlen)
+            byref(key), c_char_p(passwd), byref(buf_ptr), byref(outlen)
         )
         != 1
     ):
         raise NativeError("sm9_enc_key_info_encrypt_to_der failed")
 
-    try:
-        der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen.value)
-        _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
-    finally:
-        libc.free(out_ptr)
+    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm9_enc_key_info_decrypt_from_pem_windows(key, path, passwd):
@@ -288,23 +303,20 @@ def sm9_sign_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     Export SM9 signature key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
-    outlen = c_size_t()
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
 
     if (
         gmssl.sm9_sign_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(out_ptr), byref(outlen)
+            byref(key), c_char_p(passwd), byref(buf_ptr), byref(outlen)
         )
         != 1
     ):
         raise NativeError("sm9_sign_key_info_encrypt_to_der failed")
 
-    try:
-        der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen.value)
-        _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
-    finally:
-        libc.free(out_ptr)
+    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm9_sign_key_info_decrypt_from_pem_windows(key, path, passwd):
@@ -322,6 +334,45 @@ def sm9_sign_key_info_decrypt_from_pem_windows(key, path, passwd):
         != 1
     ):
         raise NativeError("sm9_sign_key_info_decrypt_from_der failed")
+
+
+# =============================================================================
+# X.509 Certificate PEM Operations
+# =============================================================================
+
+
+def x509_cert_to_pem_windows(cert, certlen, path):
+    """
+    Export X.509 certificate to PEM file (Windows-compatible).
+    """
+    _write_pem_windows(path, "CERTIFICATE", bytes(cert[:certlen]))
+
+
+def x509_cert_from_pem_windows(path):
+    """
+    Import X.509 certificate from PEM file (Windows-compatible).
+
+    Returns:
+        tuple: (cert_data, cert_len) - Certificate DER data and length
+    """
+    der_data = _read_pem_windows(path, "CERTIFICATE")
+    der_ptr = c_char_p(der_data)
+    der_len = c_size_t(len(der_data))
+
+    cert_ptr = c_void_p()
+    cert_len = c_size_t()
+
+    if (
+        gmssl.x509_cert_from_der(byref(cert_ptr), byref(cert_len), byref(der_ptr), byref(der_len))
+        != 1
+    ):
+        raise NativeError("x509_cert_from_der failed")
+
+    # Copy certificate data
+    cert_data = create_string_buffer(cert_len.value)
+    libc.memcpy(cert_data, cert_ptr, cert_len.value)
+
+    return cert_data, cert_len.value
 
 
 # =============================================================================
@@ -378,4 +429,54 @@ def pem_import_encrypted_key(key, path, passwd, import_func_name):
         # Linux/macOS: Use FILE* for best performance
         with open_file(path, "rb") as fp:
             if getattr(gmssl, import_func_name)(byref(key), c_char_p(passwd), fp) != 1:
+                raise NativeError(f"{import_func_name} failed")
+
+
+def pem_export_public_key(key, path, export_func_name):
+    """
+    Cross-platform wrapper for exporting public keys to PEM.
+
+    Automatically selects Windows-compatible or FILE*-based implementation.
+    Windows function name is derived by appending '_windows' to export_func_name.
+
+    Args:
+        key: Key object (SM2Key, etc.)
+        path: File path (str)
+        export_func_name: Name of the gmssl export function
+                         (e.g., "sm2_public_key_info_to_pem")
+    """
+    if sys.platform == "win32":
+        # Automatically derive Windows function name
+        windows_func_name = f"{export_func_name}_windows"
+        windows_func = globals()[windows_func_name]
+        windows_func(key, path)
+    else:
+        # Linux/macOS: Use FILE* for best performance
+        with open_file(path, "wb") as fp:
+            if getattr(gmssl, export_func_name)(byref(key), fp) != 1:
+                raise NativeError(f"{export_func_name} failed")
+
+
+def pem_import_public_key(key, path, import_func_name):
+    """
+    Cross-platform wrapper for importing public keys from PEM.
+
+    Automatically selects Windows-compatible or FILE*-based implementation.
+    Windows function name is derived by appending '_windows' to import_func_name.
+
+    Args:
+        key: Key object (SM2Key, etc.)
+        path: File path (str)
+        import_func_name: Name of the gmssl import function
+                         (e.g., "sm2_public_key_info_from_pem")
+    """
+    if sys.platform == "win32":
+        # Automatically derive Windows function name
+        windows_func_name = f"{import_func_name}_windows"
+        windows_func = globals()[windows_func_name]
+        windows_func(key, path)
+    else:
+        # Linux/macOS: Use FILE* for best performance
+        with open_file(path, "rb") as fp:
+            if getattr(gmssl, import_func_name)(byref(key), fp) != 1:
                 raise NativeError(f"{import_func_name} failed")
