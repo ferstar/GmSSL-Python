@@ -49,6 +49,7 @@ dev = [
     "pip>=24.0",
     "pre-commit>=2.21.0",
     "pytest>=7.4.4",
+    "pytest-cov>=4.1.0",
     "ruff>=0.14.1",
     "setuptools>=68.0.0",
 ]
@@ -87,3 +88,25 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["src/gmssl"]
+omit = []
+
+[tool.coverage.report]
+# Exclude lines with platform-specific code markers
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if sys.platform == .win32.:",  # Windows-specific code
+    "@abstractmethod",
+]
+
+# Show missing lines in coverage report
+show_missing = true
+
+# Fail if coverage is below this threshold (optional)
+ fail_under = 75

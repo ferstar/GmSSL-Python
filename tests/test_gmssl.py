@@ -124,13 +124,13 @@ def test_sm4_encrypt_decrypt():
     ciphertext_hex = "dd99d30fd7baf5af2930335d2554ddb7"
 
     # Encrypt
-    sm4 = Sm4(key, DO_ENCRYPT)
-    ciphertext = sm4.encrypt(plaintext)
+    sm4_enc = Sm4(key, DO_ENCRYPT)
+    ciphertext = sm4_enc.encrypt(plaintext)
     assert ciphertext == bytes.fromhex(ciphertext_hex)
 
     # Decrypt
-    sm4 = Sm4(key, DO_DECRYPT)
-    decrypted = sm4.encrypt(ciphertext)
+    sm4_dec = Sm4(key, DO_DECRYPT)
+    decrypted = sm4_dec.decrypt(ciphertext)
     assert decrypted == plaintext
 
 

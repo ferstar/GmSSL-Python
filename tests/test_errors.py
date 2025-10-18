@@ -17,6 +17,7 @@ robust error reporting and proper validation.
 import pytest
 
 from gmssl import (
+    DO_DECRYPT,
     DO_ENCRYPT,
     DO_SIGN,
     DO_VERIFY,
@@ -96,6 +97,20 @@ def test_sm4_invalid_block_size():
     sm4 = Sm4(b"1234567812345678", DO_ENCRYPT)
     with pytest.raises(ValueError, match="Invalid block size"):
         sm4.encrypt(b"short")
+
+
+def test_sm4_decrypt_on_encrypt_mode():
+    """SM4 decrypt should fail when called on encryption mode instance."""
+    sm4 = Sm4(b"1234567812345678", DO_ENCRYPT)
+    with pytest.raises(ValueError, match="Cannot call decrypt\\(\\) on encryption mode instance"):
+        sm4.decrypt(b"1234567812345678")
+
+
+def test_sm4_decrypt_invalid_block_size():
+    """SM4 decrypt should reject invalid block size."""
+    sm4 = Sm4(b"1234567812345678", DO_DECRYPT)
+    with pytest.raises(ValueError, match="Invalid block size"):
+        sm4.decrypt(b"short")
 
 
 def test_sm4_cbc_invalid_key_length():

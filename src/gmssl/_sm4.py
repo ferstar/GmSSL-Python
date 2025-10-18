@@ -41,13 +41,48 @@ class Sm4(Structure):
             gmssl.sm4_set_encrypt_key(byref(self), key)
         else:
             gmssl.sm4_set_decrypt_key(byref(self), key)
+        self._encrypt = encrypt
 
     def encrypt(self, block):
+        """
+        Encrypt/decrypt a single block (16 bytes).
+
+        Note: This method works for both encryption and decryption modes
+        depending on how the instance was initialized. For better code
+        clarity, use decrypt() method when working in decryption mode.
+
+        Args:
+            block: Input block (16 bytes)
+
+        Returns:
+            bytes: Output block (16 bytes)
+        """
         if len(block) != SM4_BLOCK_SIZE:
             raise ValueError("Invalid block size")
         outbuf = create_string_buffer(SM4_BLOCK_SIZE)
         gmssl.sm4_encrypt(byref(self), block, outbuf)
         return outbuf.raw
+
+    def decrypt(self, block):
+        """
+        Decrypt a single block (16 bytes).
+
+        This is an alias for encrypt() that provides better code clarity
+        when working in decryption mode. The actual operation is determined
+        by the mode specified during initialization.
+
+        Args:
+            block: Input block (16 bytes)
+
+        Returns:
+            bytes: Output block (16 bytes)
+
+        Raises:
+            ValueError: If instance was initialized in encryption mode
+        """
+        if self._encrypt:
+            raise ValueError("Cannot call decrypt() on encryption mode instance")
+        return self.encrypt(block)
 
 
 # =============================================================================

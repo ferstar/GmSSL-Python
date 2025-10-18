@@ -17,9 +17,12 @@ including import/export operations, get_id methods, and other utilities.
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from gmssl import (
     DO_SIGN,
     DO_VERIFY,
+    SM9_MAX_PLAINTEXT_SIZE,
     Sm2Certificate,
     Sm9EncKey,
     Sm9EncMasterKey,
@@ -146,6 +149,105 @@ def test_sm9_sign_key_has_public_key():
     master_key.generate_master_key()
     key = master_key.extract_key("Bob")
     assert key.has_public_key()
+
+
+# =============================================================================
+# SM9 User Key - Master Public Key Import Tests
+# =============================================================================
+
+
+def test_sm9_enc_key_import_master_public_key():
+    """SM9 EncKey should support importing master public key."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        enc_mpk_pem = tmpdir / "enc_mpk.pem"
+
+        # Generate and export master public key
+        master_key = Sm9EncMasterKey()
+        master_key.generate_master_key()
+        master_key.export_public_master_key_pem(str(enc_mpk_pem))
+
+        # Import master public key into user key
+        user_key = Sm9EncKey("Alice")
+        user_key.import_enc_master_public_key_pem(str(enc_mpk_pem))
+
+        # Should be able to encrypt with the imported public key
+        plaintext = b"test message"
+        ciphertext = user_key.encrypt(plaintext)
+        assert len(ciphertext) > 0
+
+
+def test_sm9_sign_key_import_master_public_key():
+    """SM9 SignKey should support importing master public key."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        sign_mpk_pem = tmpdir / "sign_mpk.pem"
+
+        # Generate and export master public key
+        master_key = Sm9SignMasterKey()
+        master_key.generate_master_key()
+        master_key.export_public_master_key_pem(str(sign_mpk_pem))
+
+        # Import master public key into user key
+        user_key = Sm9SignKey("Bob")
+        user_key.import_sign_master_public_key_pem(str(sign_mpk_pem))
+
+        # Should have public key but no private key
+        assert user_key.has_public_key()
+        assert not user_key.has_private_key()
+
+
+# =============================================================================
+# SM9 EncKey Direct Encryption Test
+# =============================================================================
+
+
+def test_sm9_enc_key_encrypt_with_master_public_key():
+    """SM9 EncKey can encrypt after importing master public key."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        enc_mpk_pem = tmpdir / "enc_mpk.pem"
+        enc_msk_pem = tmpdir / "enc_msk.pem"
+
+        # Generate master key
+        master_key = Sm9EncMasterKey()
+        master_key.generate_master_key()
+        master_key.export_public_master_key_pem(str(enc_mpk_pem))
+        master_key.export_encrypted_master_key_info_pem(str(enc_msk_pem), "password")
+
+        # Create user key with master public key
+        alice_key = Sm9EncKey("Alice")
+        alice_key.import_enc_master_public_key_pem(str(enc_mpk_pem))
+
+        # Encrypt using user key (which has master public key)
+        plaintext = b"secret message"
+        ciphertext = alice_key.encrypt(plaintext)
+
+        # Decrypt using extracted private key
+        master = Sm9EncMasterKey()
+        master.import_encrypted_master_key_info_pem(str(enc_msk_pem), "password")
+        alice_private = master.extract_key("Alice")
+        decrypted = alice_private.decrypt(ciphertext)
+
+        assert decrypted == plaintext
+
+
+def test_sm9_enc_key_encrypt_plaintext_too_long():
+    """SM9 EncKey encrypt should reject plaintext that is too long."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        enc_mpk_pem = tmpdir / "enc_mpk.pem"
+
+        master_key = Sm9EncMasterKey()
+        master_key.generate_master_key()
+        master_key.export_public_master_key_pem(str(enc_mpk_pem))
+
+        alice_key = Sm9EncKey("Alice")
+        alice_key.import_enc_master_public_key_pem(str(enc_mpk_pem))
+
+        # Try to encrypt plaintext that's too long
+        with pytest.raises(ValueError, match="Invalid plaintext length"):
+            alice_key.encrypt(b"x" * (SM9_MAX_PLAINTEXT_SIZE + 1))
 
 
 # =============================================================================

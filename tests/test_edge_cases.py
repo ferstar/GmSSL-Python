@@ -35,6 +35,7 @@ from gmssl import (
     Sm2Signature,
     Sm3,
     Sm3Hmac,
+    Sm4,
     Sm4Cbc,
     Sm4Ctr,
     Sm4Gcm,
@@ -160,6 +161,22 @@ def test_sm3_pbkdf2_empty_password():
 # =============================================================================
 # SM4 Edge Cases
 # =============================================================================
+
+
+def test_sm4_decrypt_method():
+    """SM4 decrypt method should provide clearer API for decryption."""
+    key = b"1234567812345678"
+    plaintext = b"block of message"
+
+    # Encrypt
+    sm4_enc = Sm4(key, DO_ENCRYPT)
+    ciphertext = sm4_enc.encrypt(plaintext)
+
+    # Decrypt using the decrypt method (clearer than using encrypt method)
+    sm4_dec = Sm4(key, DO_DECRYPT)
+    decrypted = sm4_dec.decrypt(ciphertext)
+
+    assert decrypted == plaintext
 
 
 def test_sm4_cbc_empty_data():
