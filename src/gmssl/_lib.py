@@ -22,71 +22,84 @@ from ctypes.util import find_library
 # Library Loading
 # =============================================================================
 
+# Minimum required GmSSL version (3.1.1)
+REQUIRED_VERSION = 30101
+GMSSL_REPO_URL = "https://github.com/guanzhi/GmSSL"
 
-def _find_gmssl_library():
+
+def _get_platform_library_name():
     """
-    Find GmSSL library with the following priority:
-    1. System library (via find_library) - respect user's installation
-    2. Bundled library (in package _libs/) - convenience for pip users
-    3. Fail with clear error message
-
-    This order ensures "Never break userspace" - existing users with
-    system-installed GmSSL continue to use their version.
+    Get platform-specific library name for bundled GmSSL library.
 
     Returns:
-        str: Path to gmssl library
+        str: Library filename for current platform
 
     Raises:
-        ValueError: If library not found anywhere
+        ValueError: If platform/architecture is not supported
     """
-    # Priority 1: System library - NEVER BREAK USERSPACE
-    system_lib = find_library("gmssl")
-    if system_lib:
-        return system_lib
-
-    # Priority 2: Bundled library in package
-    lib_dir = os.path.join(os.path.dirname(__file__), "_libs")
-
-    # Platform-specific library names
     if sys.platform == "darwin":
-        lib_name = "libgmssl.3.dylib"
-    elif sys.platform == "win32":
-        lib_name = "gmssl.dll"
-    else:  # Linux and other Unix-like systems
-        # Detect architecture for Linux
-        machine = platform.machine().lower()
-        if machine in ("aarch64", "arm64"):
-            lib_name = "libgmssl.so.3.aarch64"
-        elif machine in ("x86_64", "amd64"):
-            lib_name = "libgmssl.so.3.x86_64"
-        else:
-            # Unsupported architecture - fail fast with clear message
-            raise ValueError(
-                f"Unsupported Linux architecture: {machine}\n"
-                f"Bundled GmSSL libraries are only available for:\n"
-                f"  - x86_64 (amd64)\n"
-                f"  - aarch64 (arm64)\n"
-                f"Please install GmSSL manually: https://github.com/guanzhi/GmSSL"
-            )
+        return "libgmssl.3.dylib"
 
-    bundled_lib = os.path.join(lib_dir, lib_name)
-    if os.path.exists(bundled_lib):
-        return bundled_lib
+    if sys.platform == "win32":
+        return "gmssl.dll"
 
-    # Priority 3: Both failed - clear error message
+    # Linux and other Unix-like systems - detect architecture
+    machine = platform.machine().lower()
+    if machine in ("aarch64", "arm64"):
+        return "libgmssl.so.3.aarch64"
+
+    if machine in ("x86_64", "amd64"):
+        return "libgmssl.so.3.x86_64"
+
+    # Unsupported architecture
     raise ValueError(
-        "GmSSL library not found. Install it via:\n"
-        "  - System package: https://github.com/guanzhi/GmSSL\n"
-        "  - Or reinstall gmssl_python (should include bundled library)"
+        f"Unsupported Linux architecture: {machine}\n"
+        f"Bundled GmSSL libraries are only available for:\n"
+        f"  - x86_64 (amd64)\n"
+        f"  - aarch64 (arm64)\n"
+        f"Please install GmSSL manually: {GMSSL_REPO_URL}"
     )
+
+
+def _get_bundled_library_path():
+    """
+    Get full path to bundled GmSSL library.
+
+    Returns:
+        str or None: Path to bundled library if exists, None otherwise
+    """
+    try:
+        lib_name = _get_platform_library_name()
+    except ValueError:
+        return None
+
+    lib_dir = os.path.join(os.path.dirname(__file__), "_libs")
+    lib_path = os.path.join(lib_dir, lib_name)
+
+    return lib_path if os.path.exists(lib_path) else None
+
+
+def _check_library_version(lib):
+    """
+    Check if loaded library meets version requirement.
+
+    Args:
+        lib: Loaded CDLL library instance
+
+    Returns:
+        tuple: (is_valid, version_number)
+    """
+    version = lib.gmssl_version_num()
+    return (version >= REQUIRED_VERSION, version)
 
 
 def _load_gmssl_library():
     """
     Load GmSSL library with version check and smart fallback.
 
-    If system library exists but is too old (< 3.1.1), try bundled library.
-    This handles the case where user has outdated system installation.
+    Priority:
+    1. System library (if version >= 3.1.1)
+    2. Bundled library (fallback if system lib too old or missing)
 
     Returns:
         CDLL: Loaded GmSSL library instance
@@ -94,53 +107,37 @@ def _load_gmssl_library():
     Raises:
         ValueError: If no suitable library found or version too old
     """
-    lib_path = _find_gmssl_library()
-    lib = cdll.LoadLibrary(lib_path)
+    # Try system library first
+    system_lib_path = find_library("gmssl")
+    if system_lib_path:
+        lib = cdll.LoadLibrary(system_lib_path)
+        is_valid, version = _check_library_version(lib)
+        if is_valid:
+            return lib
+        # System library too old, will try bundled as fallback
 
-    # Check version requirement
-    version = lib.gmssl_version_num()
-    if version >= 30101:
-        return lib
+    # Try bundled library
+    bundled_lib_path = _get_bundled_library_path()
+    if bundled_lib_path:
+        lib = cdll.LoadLibrary(bundled_lib_path)
+        is_valid, version = _check_library_version(lib)
+        if is_valid:
+            return lib
 
-    # Version too old - if this was system library, try bundled as fallback
-    system_lib = find_library("gmssl")
-    if lib_path == system_lib:
-        # Try bundled library with architecture detection
-        lib_dir = os.path.join(os.path.dirname(__file__), "_libs")
+    # No suitable library found - provide helpful error message
+    if system_lib_path:
+        # System library exists but too old
+        raise ValueError(
+            f"GmSSL version too old: {version} < {REQUIRED_VERSION} (required)\n"
+            f"Loaded from: {system_lib_path}\n"
+            f"Please upgrade GmSSL: {GMSSL_REPO_URL}"
+        )
 
-        if sys.platform == "darwin":
-            lib_name = "libgmssl.3.dylib"
-        elif sys.platform == "win32":
-            lib_name = "gmssl.dll"
-        else:  # Linux
-            # Detect architecture
-            machine = platform.machine().lower()
-            if machine in ("aarch64", "arm64"):
-                lib_name = "libgmssl.so.3.aarch64"
-            elif machine in ("x86_64", "amd64"):
-                lib_name = "libgmssl.so.3.x86_64"
-            else:
-                # Unsupported architecture - no fallback
-                raise ValueError(
-                    f"Unsupported Linux architecture: {machine}\n"
-                    f"Bundled GmSSL libraries are only available for:\n"
-                    f"  - x86_64 (amd64)\n"
-                    f"  - aarch64 (arm64)\n"
-                    f"Please install GmSSL manually: https://github.com/guanzhi/GmSSL"
-                )
-
-        bundled_lib = os.path.join(lib_dir, lib_name)
-        if os.path.exists(bundled_lib):
-            lib = cdll.LoadLibrary(bundled_lib)
-            version = lib.gmssl_version_num()
-            if version >= 30101:
-                return lib
-
-    # No suitable library found
+    # No library found at all
     raise ValueError(
-        f"GmSSL version too old: {version} < 30101 (required)\n"
-        f"Loaded from: {lib_path}\n"
-        f"Please upgrade GmSSL: https://github.com/guanzhi/GmSSL"
+        "GmSSL library not found. Install it via:\n"
+        f"  - System package: {GMSSL_REPO_URL}\n"
+        "  - Or reinstall gmssl_python (should include bundled library)"
     )
 
 
