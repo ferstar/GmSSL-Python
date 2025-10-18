@@ -183,6 +183,7 @@ class Sm4Gcm(Structure):
         ("taglen", c_size_t),
         ("mac", c_uint8 * 16),
         ("maclen", c_size_t),
+        ("encedlen", c_uint64),
     ]
 
     def __init__(self, key, iv, aad, taglen=SM4_GCM_DEFAULT_TAG_SIZE, encrypt=True):
