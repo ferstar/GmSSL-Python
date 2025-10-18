@@ -486,6 +486,8 @@ jobs:
     name: Create PR with updated libraries
     needs: [test-libraries]
     runs-on: ubuntu-latest
+    # Only create PR when all platforms are built and tested
+    if: ${{ github.event.inputs.build_platforms == 'all' && github.event.inputs.test_platforms == 'all' }}
 
     steps:
       - name: Checkout GmSSL-Python
