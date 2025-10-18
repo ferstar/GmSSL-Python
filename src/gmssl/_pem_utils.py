@@ -107,10 +107,11 @@ def sm2_public_key_info_from_pem_windows(key, path):
     Import SM2 public key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "PUBLIC KEY")
-    der_ptr = c_char_p(der_data)
+    # Create a pointer to the DER data
+    der_ptr_value = c_char_p(der_data)
     der_len = c_size_t(len(der_data))
 
-    if gmssl.sm2_public_key_info_from_der(byref(key), byref(der_ptr), byref(der_len)) != 1:
+    if gmssl.sm2_public_key_info_from_der(byref(key), byref(der_ptr_value), byref(der_len)) != 1:
         raise NativeError("sm2_public_key_info_from_der failed")
 
 
@@ -173,6 +174,36 @@ def sm2_private_key_info_decrypt_from_pem_windows(key, path, passwd):
 # =============================================================================
 
 
+def sm9_enc_master_public_key_to_pem_windows(mpk, path):
+    """
+    Export SM9 encryption master public key to PEM file (Windows-compatible).
+    """
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
+
+    if gmssl.sm9_enc_master_public_key_to_der(byref(mpk), byref(buf_ptr), byref(outlen)) != 1:
+        raise NativeError("sm9_enc_master_public_key_to_der failed")
+
+    _write_pem_windows(path, "PUBLIC KEY", buf.raw[: outlen.value])
+
+
+def sm9_enc_master_public_key_from_pem_windows(mpk, path):
+    """
+    Import SM9 encryption master public key from PEM file (Windows-compatible).
+    """
+    der_data = _read_pem_windows(path, "PUBLIC KEY")
+    der_ptr_value = c_char_p(der_data)
+    der_len = c_size_t(len(der_data))
+
+    if (
+        gmssl.sm9_enc_master_public_key_from_der(byref(mpk), byref(der_ptr_value), byref(der_len))
+        != 1
+    ):
+        raise NativeError("sm9_enc_master_public_key_from_der failed")
+
+
 def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     Export SM9 encryption master key to PEM file (Windows-compatible).
@@ -213,6 +244,36 @@ def sm9_enc_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
 # =============================================================================
 # SM9 Signature Master Key PEM Operations
 # =============================================================================
+
+
+def sm9_sign_master_public_key_to_pem_windows(mpk, path):
+    """
+    Export SM9 signature master public key to PEM file (Windows-compatible).
+    """
+    # Use stack buffer like the C implementation
+    buf = create_string_buffer(1024)
+    buf_ptr = c_char_p(buf.raw)
+    outlen = c_size_t(0)
+
+    if gmssl.sm9_sign_master_public_key_to_der(byref(mpk), byref(buf_ptr), byref(outlen)) != 1:
+        raise NativeError("sm9_sign_master_public_key_to_der failed")
+
+    _write_pem_windows(path, "PUBLIC KEY", buf.raw[: outlen.value])
+
+
+def sm9_sign_master_public_key_from_pem_windows(mpk, path):
+    """
+    Import SM9 signature master public key from PEM file (Windows-compatible).
+    """
+    der_data = _read_pem_windows(path, "PUBLIC KEY")
+    der_ptr_value = c_char_p(der_data)
+    der_len = c_size_t(len(der_data))
+
+    if (
+        gmssl.sm9_sign_master_public_key_from_der(byref(mpk), byref(der_ptr_value), byref(der_len))
+        != 1
+    ):
+        raise NativeError("sm9_sign_master_public_key_from_der failed")
 
 
 def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
