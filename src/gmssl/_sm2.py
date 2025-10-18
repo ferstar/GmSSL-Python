@@ -23,7 +23,7 @@ from gmssl._constants import (
     SM2_MAX_SIGNATURE_SIZE,
     SM3_DIGEST_SIZE,
 )
-from gmssl._lib import NativeError, StateError, gmssl, raise_on_error
+from gmssl._lib import StateError, checked, gmssl
 
 # Import cross-platform PEM wrappers
 from gmssl._pem_utils import (
@@ -57,7 +57,7 @@ class Sm2Key(Structure):
         self._has_private_key = False
 
     def generate_key(self):
-        raise_on_error(gmssl.sm2_key_generate(byref(self)), "sm2_key_generate")
+        checked.sm2_key_generate(byref(self))
         self._has_public_key = True
         self._has_private_key = True
 
@@ -104,8 +104,7 @@ class Sm2Key(Structure):
             raise ValueError("Invalid SM3 digest size")
         sig = create_string_buffer(SM2_MAX_SIGNATURE_SIZE)
         siglen = c_size_t()
-        if gmssl.sm2_sign(byref(self), dgst, sig, byref(siglen)) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.sm2_sign(byref(self), dgst, sig, byref(siglen))
         return sig[: siglen.value]
 
     def verify(self, dgst, signature):
@@ -119,11 +118,10 @@ class Sm2Key(Structure):
         if not self._has_public_key:
             raise TypeError("has no public key")
         if len(data) > SM2_MAX_PLAINTEXT_SIZE:
-            raise NativeError("libgmssl inner error")
+            raise ValueError("Plaintext too long")
         outbuf = create_string_buffer(SM2_MAX_CIPHERTEXT_SIZE)
         outlen = c_size_t()
-        if gmssl.sm2_encrypt(byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.sm2_encrypt(byref(self), data, c_size_t(len(data)), outbuf, byref(outlen))
         return outbuf[: outlen.value]
 
     def decrypt(self, ciphertext):
@@ -131,17 +129,13 @@ class Sm2Key(Structure):
             raise TypeError("has no private key")
         outbuf = create_string_buffer(SM2_MAX_PLAINTEXT_SIZE)
         outlen = c_size_t()
-        if (
-            gmssl.sm2_decrypt(
-                byref(self),
-                ciphertext,
-                c_size_t(len(ciphertext)),
-                outbuf,
-                byref(outlen),
-            )
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
+        checked.sm2_decrypt(
+            byref(self),
+            ciphertext,
+            c_size_t(len(ciphertext)),
+            outbuf,
+            byref(outlen),
+        )
         return outbuf[: outlen.value]
 
 
@@ -172,47 +166,36 @@ class Sm2Signature(Structure):
         signer_id = signer_id.encode("utf-8")
         if sign == DO_SIGN:
             if not sm2_key.has_private_key():
-                raise NativeError("libgmssl inner error")
-            if (
-                gmssl.sm2_sign_init(
-                    byref(self),
-                    byref(sm2_key),
-                    c_char_p(signer_id),
-                    c_size_t(len(signer_id)),
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+                raise TypeError("SM2 key has no private key")
+            checked.sm2_sign_init(
+                byref(self),
+                byref(sm2_key),
+                c_char_p(signer_id),
+                c_size_t(len(signer_id)),
+            )
         else:
             if not sm2_key.has_public_key():
-                raise NativeError("libgmssl inner error")
-            if (
-                gmssl.sm2_verify_init(
-                    byref(self),
-                    byref(sm2_key),
-                    c_char_p(signer_id),
-                    c_size_t(len(signer_id)),
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+                raise TypeError("SM2 key has no public key")
+            checked.sm2_verify_init(
+                byref(self),
+                byref(sm2_key),
+                c_char_p(signer_id),
+                c_size_t(len(signer_id)),
+            )
         self._sign = sign
 
     def update(self, data):
         if self._sign == DO_SIGN:
-            if gmssl.sm2_sign_update(byref(self), data, c_size_t(len(data))) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm2_sign_update(byref(self), data, c_size_t(len(data)))
         else:
-            if gmssl.sm2_verify_update(byref(self), data, c_size_t(len(data))) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm2_verify_update(byref(self), data, c_size_t(len(data)))
 
     def sign(self):
         if self._sign != DO_SIGN:
             raise StateError("not sign state")
         sig = create_string_buffer(SM2_MAX_SIGNATURE_SIZE)
         siglen = c_size_t()
-        if gmssl.sm2_sign_finish(byref(self), sig, byref(siglen)) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.sm2_sign_finish(byref(self), sig, byref(siglen))
         return sig[: siglen.value]
 
     def verify(self, signature):

@@ -15,7 +15,7 @@ This module should not be imported directly by users.
 from ctypes import Structure, byref, c_size_t, c_uint8, c_uint32, create_string_buffer
 
 from gmssl._constants import ZUC_BLOCK_SIZE, ZUC_IV_SIZE, ZUC_KEY_SIZE
-from gmssl._lib import NativeError, gmssl
+from gmssl._lib import checked
 
 # =============================================================================
 # ZUC Stream Cipher
@@ -38,22 +38,16 @@ class Zuc(Structure):
             raise ValueError("Invalid key length")
         if len(iv) != ZUC_IV_SIZE:
             raise ValueError("Invalid IV size")
-        if gmssl.zuc_encrypt_init(byref(self), key, iv) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.zuc_encrypt_init(byref(self), key, iv)
 
     def update(self, data):
         outbuf = create_string_buffer(len(data) + ZUC_BLOCK_SIZE)
         outlen = c_size_t()
-        if (
-            gmssl.zuc_encrypt_update(byref(self), data, c_size_t(len(data)), outbuf, byref(outlen))
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
+        checked.zuc_encrypt_update(byref(self), data, c_size_t(len(data)), outbuf, byref(outlen))
         return outbuf[0 : outlen.value]
 
     def finish(self):
         outbuf = create_string_buffer(ZUC_BLOCK_SIZE)
         outlen = c_size_t()
-        if gmssl.zuc_encrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.zuc_encrypt_finish(byref(self), outbuf, byref(outlen))
         return outbuf[: outlen.value]

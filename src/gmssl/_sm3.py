@@ -35,7 +35,7 @@ from gmssl._constants import (
     SM3_PBKDF2_MAX_SALT_SIZE,
     SM3_PBKDF2_MIN_ITER,
 )
-from gmssl._lib import NativeError, gmssl
+from gmssl._lib import checked, gmssl
 
 # =============================================================================
 # SM3 Hash
@@ -110,18 +110,14 @@ def sm3_pbkdf2(passwd, salt, iterator, keylen):
     passwd = passwd.encode("utf-8")
     key = create_string_buffer(keylen)
 
-    if (
-        gmssl.sm3_pbkdf2(
-            c_char_p(passwd),
-            c_size_t(len(passwd)),
-            salt,
-            c_size_t(len(salt)),
-            c_size_t(iterator),
-            c_size_t(keylen),
-            key,
-        )
-        != 1
-    ):
-        raise NativeError("libgmssl inner error")
+    checked.sm3_pbkdf2(
+        c_char_p(passwd),
+        c_size_t(len(passwd)),
+        salt,
+        c_size_t(len(salt)),
+        c_size_t(iterator),
+        c_size_t(keylen),
+        key,
+    )
 
     return key.raw

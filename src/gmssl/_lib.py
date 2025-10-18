@@ -188,3 +188,137 @@ def raise_on_error(result, func_name):
     """
     if result != 1:
         raise NativeError(f"{func_name} failed")
+
+
+def check_gmssl_error(func):
+    """
+    Decorator that automatically checks gmssl function call results.
+
+    The decorated function should return a tuple of (result, func_name) or
+    just call gmssl functions that return 1 on success.
+
+    Example 1 - Return tuple:
+        @check_gmssl_error
+        def generate_key(self):
+            result = gmssl.sm2_key_generate(byref(self))
+            return result, "sm2_key_generate"
+
+    Example 2 - Check inline:
+        @check_gmssl_error
+        def generate_key(self):
+            gmssl.sm2_key_generate(byref(self)) | "sm2_key_generate"
+
+    Note: For simple cases, use raise_on_error() directly instead.
+    """
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        # If function returns a tuple (result, func_name), check the result
+        if isinstance(result, tuple) and len(result) == 2:
+            ret_val, func_name = result
+            if ret_val != 1:
+                raise NativeError(f"{func_name} failed")
+            return ret_val
+        # Otherwise return as-is (function already handled errors)
+        return result
+
+    return wrapper
+
+
+class GmsslCall:
+    """
+    Callable wrapper for gmssl functions with automatic error checking.
+
+    This provides a cleaner alternative to raise_on_error() for repeated calls
+    to the same gmssl function.
+
+    Example:
+        # Create wrapper once
+        sm2_sign = GmsslCall(gmssl.sm2_sign, "sm2_sign")
+
+        # Use it multiple times
+        sm2_sign(byref(self), dgst, sig, byref(siglen))
+        sm2_sign(byref(other), dgst2, sig2, byref(siglen2))
+
+    Alternative usage with auto-naming:
+        # Function name is extracted from the callable
+        encrypt = GmsslCall(gmssl.sm2_encrypt)  # name = "sm2_encrypt"
+        encrypt(byref(self), data, len(data), outbuf, byref(outlen))
+    """
+
+    def __init__(self, func, name=None):
+        """
+        Initialize the gmssl function wrapper.
+
+        Args:
+            func: The gmssl function to wrap
+            name: Optional function name for error messages.
+                  If not provided, attempts to extract from func.__name__
+        """
+        self.func = func
+        # Try to extract name from function if not provided
+        if name is None and hasattr(func, "__name__"):
+            # Remove 'gmssl_' prefix if present
+            name = func.__name__.replace("gmssl_", "")
+        self.name = name or "gmssl_function"
+
+    def __call__(self, *args, **kwargs):
+        """
+        Call the wrapped gmssl function and check for errors.
+
+        Returns:
+            The result from the gmssl function (typically 1 on success)
+
+        Raises:
+            NativeError: If the gmssl function returns a value != 1
+        """
+        result = self.func(*args, **kwargs)
+        if result != 1:
+            raise NativeError(f"{self.name} failed")
+        return result
+
+
+class _GmsslProxy:
+    """
+    Proxy object for gmssl library that auto-wraps functions with error checking.
+
+    This eliminates the need to manually call raise_on_error or GmsslCall for every
+    gmssl function call. Function names are automatically extracted from the attribute.
+
+    Example:
+        # Instead of:
+        raise_on_error(gmssl.sm2_key_generate(byref(key)), "sm2_key_generate")
+
+        # Simply write:
+        checked.sm2_key_generate(byref(key))
+
+        # The function name is automatically extracted and errors are checked
+    """
+
+    def __init__(self, lib):
+        """
+        Initialize proxy with the gmssl library.
+
+        Args:
+            lib: The loaded gmssl CDLL library instance
+        """
+        self._lib = lib
+
+    def __getattr__(self, name):
+        """
+        Get gmssl function and wrap it with automatic error checking.
+
+        Args:
+            name: Function name (e.g., "sm2_key_generate")
+
+        Returns:
+            GmsslCall: Wrapped function with error checking
+        """
+        func = getattr(self._lib, name)
+        return GmsslCall(func, name)
+
+
+# Create a proxy instance for convenient access
+checked = _GmsslProxy(gmssl)

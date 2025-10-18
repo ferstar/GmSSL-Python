@@ -24,7 +24,7 @@ from gmssl._constants import (
     SM4_GCM_MIN_IV_SIZE,
     SM4_KEY_SIZE,
 )
-from gmssl._lib import NativeError, gmssl
+from gmssl._lib import checked, gmssl
 
 # =============================================================================
 # SM4 Block Cipher
@@ -69,43 +69,31 @@ class Sm4Cbc(Structure):
         if len(iv) != SM4_BLOCK_SIZE:
             raise ValueError("Invalid IV size")
         if encrypt == DO_ENCRYPT:
-            if gmssl.sm4_cbc_encrypt_init(byref(self), key, iv) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm4_cbc_encrypt_init(byref(self), key, iv)
         else:
-            if gmssl.sm4_cbc_decrypt_init(byref(self), key, iv) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm4_cbc_decrypt_init(byref(self), key, iv)
         self._encrypt = encrypt
 
     def update(self, data):
         outbuf = create_string_buffer(len(data) + SM4_BLOCK_SIZE)
         outlen = c_size_t()
         if self._encrypt == DO_ENCRYPT:
-            if (
-                gmssl.sm4_cbc_encrypt_update(
-                    byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            checked.sm4_cbc_encrypt_update(
+                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+            )
         else:
-            if (
-                gmssl.sm4_cbc_decrypt_update(
-                    byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            checked.sm4_cbc_decrypt_update(
+                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+            )
         return outbuf[0 : outlen.value]
 
     def finish(self):
         outbuf = create_string_buffer(SM4_BLOCK_SIZE)
         outlen = c_size_t()
         if self._encrypt == DO_ENCRYPT:
-            if gmssl.sm4_cbc_encrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm4_cbc_encrypt_finish(byref(self), outbuf, byref(outlen))
         else:
-            if gmssl.sm4_cbc_decrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm4_cbc_decrypt_finish(byref(self), outbuf, byref(outlen))
         return outbuf[: outlen.value]
 
 
@@ -127,26 +115,20 @@ class Sm4Ctr(Structure):
             raise ValueError("Invalid key length")
         if len(ctr) != SM4_BLOCK_SIZE:
             raise ValueError("Invalid CTR size")
-        if gmssl.sm4_ctr_encrypt_init(byref(self), key, ctr) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.sm4_ctr_encrypt_init(byref(self), key, ctr)
 
     def update(self, data):
         outbuf = create_string_buffer(len(data) + SM4_BLOCK_SIZE)
         outlen = c_size_t()
-        if (
-            gmssl.sm4_ctr_encrypt_update(
-                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-            )
-            != 1
-        ):
-            raise NativeError("libgmssl inner error")
+        checked.sm4_ctr_encrypt_update(
+            byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+        )
         return outbuf[0 : outlen.value]
 
     def finish(self):
         outbuf = create_string_buffer(SM4_BLOCK_SIZE)
         outlen = c_size_t()
-        if gmssl.sm4_ctr_encrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-            raise NativeError("libgmssl inner error")
+        checked.sm4_ctr_encrypt_finish(byref(self), outbuf, byref(outlen))
         return outbuf[: outlen.value]
 
 
@@ -194,65 +176,47 @@ class Sm4Gcm(Structure):
         if taglen < 1 or taglen > SM4_GCM_MAX_TAG_SIZE:
             raise ValueError("Invalid Tag length")
         if encrypt == DO_ENCRYPT:
-            if (
-                gmssl.sm4_gcm_encrypt_init(
-                    byref(self),
-                    key,
-                    c_size_t(len(key)),
-                    iv,
-                    c_size_t(len(iv)),
-                    aad,
-                    c_size_t(len(aad)),
-                    c_size_t(taglen),
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            checked.sm4_gcm_encrypt_init(
+                byref(self),
+                key,
+                c_size_t(len(key)),
+                iv,
+                c_size_t(len(iv)),
+                aad,
+                c_size_t(len(aad)),
+                c_size_t(taglen),
+            )
         else:
-            if (
-                gmssl.sm4_gcm_decrypt_init(
-                    byref(self),
-                    key,
-                    c_size_t(len(key)),
-                    iv,
-                    c_size_t(len(iv)),
-                    aad,
-                    c_size_t(len(aad)),
-                    c_size_t(taglen),
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            checked.sm4_gcm_decrypt_init(
+                byref(self),
+                key,
+                c_size_t(len(key)),
+                iv,
+                c_size_t(len(iv)),
+                aad,
+                c_size_t(len(aad)),
+                c_size_t(taglen),
+            )
         self._encrypt = encrypt
 
     def update(self, data):
         outbuf = create_string_buffer(len(data) + SM4_BLOCK_SIZE)
         outlen = c_size_t()
         if self._encrypt == DO_ENCRYPT:
-            if (
-                gmssl.sm4_gcm_encrypt_update(
-                    byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            checked.sm4_gcm_encrypt_update(
+                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+            )
         else:
-            if (
-                gmssl.sm4_gcm_decrypt_update(
-                    byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-                )
-                != 1
-            ):
-                raise NativeError("libgmssl inner error")
+            checked.sm4_gcm_decrypt_update(
+                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+            )
         return outbuf[0 : outlen.value]
 
     def finish(self):
         outbuf = create_string_buffer(SM4_BLOCK_SIZE + SM4_GCM_MAX_TAG_SIZE)
         outlen = c_size_t()
         if self._encrypt == DO_ENCRYPT:
-            if gmssl.sm4_gcm_encrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm4_gcm_encrypt_finish(byref(self), outbuf, byref(outlen))
         else:
-            if gmssl.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
-                raise NativeError("libgmssl inner error")
+            checked.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen))
         return outbuf[: outlen.value]
