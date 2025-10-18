@@ -32,12 +32,18 @@ from gmssl._sm3 import Sm3
 # =============================================================================
 
 
-class Sm2Point(Structure):
-    _fields_ = [("x", c_uint8 * 32), ("y", c_uint8 * 32)]
+class Sm2Z256Point(Structure):
+    """SM2_Z256_POINT structure using Jacobian coordinates (X, Y, Z)."""
+
+    _fields_ = [
+        ("X", c_uint8 * 32),  # sm2_z256_t
+        ("Y", c_uint8 * 32),  # sm2_z256_t
+        ("Z", c_uint8 * 32),  # sm2_z256_t
+    ]
 
 
 class Sm2Key(Structure):
-    _fields_ = [("public_key", Sm2Point), ("private_key", c_uint8 * 32)]
+    _fields_ = [("public_key", Sm2Z256Point), ("private_key", c_uint8 * 32)]
 
     def __init__(self):
         self._has_public_key = False
@@ -152,15 +158,7 @@ class Sm2Key(Structure):
 class Sm2SignPreComp(Structure):
     _fields_ = [
         ("k", c_uint8 * 32),  # sm2_z256_t = uint64_t[4] = 32 bytes
-        ("x1_modn", c_uint8 * 32)
-    ]
-
-
-class Sm2Z256Point(Structure):
-    _fields_ = [
-        ("X", c_uint8 * 32),  # sm2_z256_t
-        ("Y", c_uint8 * 32),
-        ("Z", c_uint8 * 32)
+        ("x1_modn", c_uint8 * 32),
     ]
 
 
@@ -172,7 +170,7 @@ class Sm2Signature(Structure):
         ("fast_sign_private", c_uint8 * 32),  # sm2_z256_t
         ("pre_comp", Sm2SignPreComp * 32),  # SM2_SIGN_PRE_COMP_COUNT = 32
         ("num_pre_comp", c_uint),  # unsigned int
-        ("public_point_table", Sm2Z256Point * 16)
+        ("public_point_table", Sm2Z256Point * 16),
     ]
 
     def __init__(self, sm2_key, signer_id=SM2_DEFAULT_ID, sign=DO_SIGN):
@@ -225,7 +223,4 @@ class Sm2Signature(Structure):
     def verify(self, signature):
         if self._sign != DO_VERIFY:
             raise StateError("not verify state")
-        if gmssl.sm2_verify_finish(byref(self), signature, c_size_t(len(signature))) != 1:
-            return False
-        return True
-
+        return gmssl.sm2_verify_finish(byref(self), signature, c_size_t(len(signature))) == 1
