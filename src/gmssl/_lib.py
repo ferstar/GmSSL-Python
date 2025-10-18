@@ -90,7 +90,7 @@ def _check_library_version(lib):
         tuple: (is_valid, version_number)
     """
     version = lib.gmssl_version_num()
-    return (version >= REQUIRED_VERSION, version)
+    return version >= REQUIRED_VERSION, version
 
 
 def _load_gmssl_library():
