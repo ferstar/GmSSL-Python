@@ -132,11 +132,4 @@ dmypy.json
 *.pem
 .DS_Store
 
-# Local GmSSL installation and source
-gm/
-GmSSL/
-
-# GitHub Actions artifacts (should not be committed)
-downloaded-libs/
-
 .idea/

@@ -158,6 +158,25 @@ class Ghash(Structure):
 
 
 class Sm4Gcm(Structure):
+    """
+    SM4-GCM (Galois/Counter Mode) authenticated encryption.
+
+    WARNING: This class is NOT thread-safe due to underlying GmSSL library
+    implementation. If you need to use SM4-GCM in a multi-threaded environment,
+    you must protect each instance with a lock (threading.Lock).
+
+    Example:
+        # Single-threaded usage (safe)
+        sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
+        ciphertext = sm4_gcm.update(plaintext) + sm4_gcm.finish()
+
+        # Multi-threaded usage (requires lock)
+        lock = threading.Lock()
+        with lock:
+            sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
+            ciphertext = sm4_gcm.update(plaintext) + sm4_gcm.finish()
+    """
+
     _fields_ = [
         ("sm4_ctr_ctx", Sm4Ctr),
         ("mac_ctx", Ghash),

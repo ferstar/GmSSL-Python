@@ -188,16 +188,58 @@ echo -n abc | gmssl sm3
 
 ### 运行测试
 
+项目包含 **117 个测试**，覆盖所有主要功能、错误处理、边界条件、性能和线程安全测试。
+
 ```bash
-# 库已自包含，无需设置环境变量
+# 运行所有测试（推荐使用 uv）
+uv run pytest tests/ -v
+
+# 或使用 pytest 直接运行
 pytest tests/ -v
+
+# 运行特定测试文件
+uv run pytest tests/test_errors.py -v        # 错误处理测试
+uv run pytest tests/test_edge_cases.py -v    # 边界条件测试
+uv run pytest tests/test_additional_methods.py -v  # 补充方法测试
+uv run pytest tests/test_pygmssl_missing.py -v     # pygmssl缺失测试
+uv run pytest tests/test_thread_safety.py -v       # 线程安全测试
 ```
+
+**测试覆盖**:
+- ✅ 功能测试: 17 个
+- ✅ 错误处理测试: 34 个
+- ✅ 边界条件测试: 28 个
+- ✅ 补充方法测试: 15 个
+- ✅ pygmssl缺失测试: 13 个（性能、压力、边界测试）
+- ✅ 线程安全测试: 10 个（多线程并发测试）
+
+### 线程安全说明
+
+⚠️ **重要**: `Sm4Gcm` 类由于底层 GmSSL 库实现限制，**不是线程安全的**。
+
+如果需要在多线程环境中使用 SM4-GCM，必须使用锁保护：
+
+```python
+import threading
+from gmssl import Sm4Gcm, DO_ENCRYPT
+
+lock = threading.Lock()
+
+def encrypt_with_gcm(key, iv, aad, plaintext):
+    with lock:  # 必须使用锁保护
+        sm4_gcm = Sm4Gcm(key, iv, aad, 16, DO_ENCRYPT)
+        ciphertext = sm4_gcm.update(plaintext)
+        ciphertext += sm4_gcm.finish()
+        return ciphertext
+```
+
+其他所有密码算法（SM2, SM3, SM4-CBC/CTR, SM9, ZUC 等）都是线程安全的，可以在多线程环境中直接使用。
 
 ### 修改代码
 
 1. 编辑 `src/gmssl/_core.py` 中的实现代码
 2. 如需更新公共 API，修改 `src/gmssl/__init__.py`
-3. 运行测试验证：`pytest tests/ -v`
+3. 运行测试验证：`uv run pytest tests/ -v`
 4. 格式化代码：`ruff format src/ tests/`
 5. 检查代码：`ruff check src/ tests/`
 
