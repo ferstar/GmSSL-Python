@@ -333,7 +333,7 @@ jobs:
     name: Test libraries on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     needs: [build-linux-x86_64, build-linux-aarch64, create-macos-universal, build-windows]
     runs-on: ${{ matrix.os }}
-    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') && (github.event.inputs.test_platforms == 'all' || contains(github.event.inputs.test_platforms, matrix.os)) }}
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') }}
 
     strategy:
       fail-fast: false  # Continue testing other combinations even if one fails
@@ -368,55 +368,69 @@ jobs:
             python-version: '3.11'
 
     steps:
+      - name: Check if platform should be tested
+        id: check_platform
+        run: |
+          if [ "${{ github.event.inputs.test_platforms }}" = "all" ] || echo "${{ github.event.inputs.test_platforms }}" | grep -q "${{ matrix.os }}"; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Skipping ${{ matrix.os }} - not in test_platforms"
+          fi
+        shell: bash
+
       - name: Checkout GmSSL-Python
+        if: steps.check_platform.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
+        if: steps.check_platform.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Download Linux x86_64 library
-        if: matrix.os == 'ubuntu-latest'
+        if: steps.check_platform.outputs.should_run == 'true' && matrix.os == 'ubuntu-latest'
         uses: actions/download-artifact@v4
         with:
           name: gmssl-linux-x86_64
           path: src/gmssl/_libs
 
       - name: Rename Linux x86_64 library
-        if: matrix.os == 'ubuntu-latest'
+        if: steps.check_platform.outputs.should_run == 'true' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           mv src/gmssl/_libs/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.x86_64
 
       - name: Download Linux x86_64 library (Ubuntu 22.04)
-        if: matrix.os == 'ubuntu-22.04'
+        if: steps.check_platform.outputs.should_run == 'true' && matrix.os == 'ubuntu-22.04'
         uses: actions/download-artifact@v4
         with:
           name: gmssl-linux-x86_64
           path: src/gmssl/_libs
 
       - name: Rename Linux x86_64 library (Ubuntu 22.04)
-        if: matrix.os == 'ubuntu-22.04'
+        if: steps.check_platform.outputs.should_run == 'true' && matrix.os == 'ubuntu-22.04'
         shell: bash
         run: |
           mv src/gmssl/_libs/libgmssl.so.3 src/gmssl/_libs/libgmssl.so.3.x86_64
 
       - name: Download macOS universal library
-        if: matrix.os == 'macos-latest'
+        if: steps.check_platform.outputs.should_run == 'true' && matrix.os == 'macos-latest'
         uses: actions/download-artifact@v4
         with:
           name: gmssl-macos-universal
           path: src/gmssl/_libs
 
       - name: Download Windows library
-        if: matrix.os == 'windows-latest'
+        if: steps.check_platform.outputs.should_run == 'true' && matrix.os == 'windows-latest'
         uses: actions/download-artifact@v4
         with:
           name: gmssl-windows-x86_64
           path: src/gmssl/_libs
 
       - name: Verify library files
+        if: steps.check_platform.outputs.should_run == 'true'
         shell: bash
         run: |
           echo "=== Library files in src/gmssl/_libs/ ==="
@@ -446,14 +460,17 @@ jobs:
           fi
 
       - name: Install dependencies
+        if: steps.check_platform.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install pytest
 
       - name: Install package in development mode
+        if: steps.check_platform.outputs.should_run == 'true'
         run: pip install -e .
 
       - name: Verify installation
+        if: steps.check_platform.outputs.should_run == 'true'
         shell: bash
         run: |
           echo "=== System info ==="
@@ -473,10 +490,11 @@ jobs:
           python -c "import gmssl._lib as lib; import ctypes.util; print(f'System library: {ctypes.util.find_library(\"gmssl\")}'); print(f'Using library: {lib.gmssl._name}')"
 
       - name: Run tests
+        if: steps.check_platform.outputs.should_run == 'true'
         run: pytest tests/ -v -s --tb=short
 
       - name: Run SM9 tests separately with debug
-        if: always()
+        if: steps.check_platform.outputs.should_run == 'true' && always()
         shell: bash
         run: |
           echo "=== Running SM9 tests with verbose output ==="
