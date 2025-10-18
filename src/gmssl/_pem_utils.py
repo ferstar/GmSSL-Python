@@ -93,10 +93,10 @@ def sm2_public_key_info_to_pem_windows(key, path):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(512)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
-    if gmssl.sm2_public_key_info_to_der(byref(key), byref(buf_ptr), byref(outlen)) != 1:
+    if gmssl.sm2_public_key_info_to_der(byref(key), byref(p), byref(outlen)) != 1:
         raise NativeError("sm2_public_key_info_to_der failed")
 
     _write_pem_windows(path, "PUBLIC KEY", buf.raw[: outlen.value])
@@ -129,12 +129,12 @@ def sm2_private_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     # Use stack buffer like the C implementation
     buf = create_string_buffer(1024)
-    buf_ptr = c_char_p(buf.raw)
+    p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
     if (
         gmssl.sm2_private_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(buf_ptr), byref(outlen)
+            byref(key), c_char_p(passwd), byref(p), byref(outlen)
         )
         != 1
     ):
