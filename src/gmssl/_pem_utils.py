@@ -188,14 +188,14 @@ def sm9_enc_master_public_key_to_pem_windows(mpk, path):
     if gmssl.sm9_enc_master_public_key_to_der(byref(mpk), byref(buf_ptr), byref(outlen)) != 1:
         raise NativeError("sm9_enc_master_public_key_to_der failed")
 
-    _write_pem_windows(path, "PUBLIC KEY", buf.raw[: outlen.value])
+    _write_pem_windows(path, "SM9 ENC MASTER PUBLIC KEY", buf.raw[: outlen.value])
 
 
 def sm9_enc_master_public_key_from_pem_windows(mpk, path):
     """
     Import SM9 encryption master public key from PEM file (Windows-compatible).
     """
-    der_data = _read_pem_windows(path, "PUBLIC KEY")
+    der_data = _read_pem_windows(path, "SM9 ENC MASTER PUBLIC KEY")
     buf = create_string_buffer(der_data)
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
@@ -221,14 +221,14 @@ def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     ):
         raise NativeError("sm9_enc_master_key_info_encrypt_to_der failed")
 
-    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
+    _write_pem_windows(path, "ENCRYPTED SM9 ENC MASTER KEY", buf.raw[: outlen.value])
 
 
 def sm9_enc_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
     """
     Import SM9 encryption master key from PEM file (Windows-compatible).
     """
-    der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
+    der_data = _read_pem_windows(path, "ENCRYPTED SM9 ENC MASTER KEY")
     buf = create_string_buffer(der_data)
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
@@ -259,14 +259,14 @@ def sm9_sign_master_public_key_to_pem_windows(mpk, path):
     if gmssl.sm9_sign_master_public_key_to_der(byref(mpk), byref(buf_ptr), byref(outlen)) != 1:
         raise NativeError("sm9_sign_master_public_key_to_der failed")
 
-    _write_pem_windows(path, "PUBLIC KEY", buf.raw[: outlen.value])
+    _write_pem_windows(path, "SM9 SIGN MASTER PUBLIC KEY", buf.raw[: outlen.value])
 
 
 def sm9_sign_master_public_key_from_pem_windows(mpk, path):
     """
     Import SM9 signature master public key from PEM file (Windows-compatible).
     """
-    der_data = _read_pem_windows(path, "PUBLIC KEY")
+    der_data = _read_pem_windows(path, "SM9 SIGN MASTER PUBLIC KEY")
     buf = create_string_buffer(der_data)
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
@@ -292,14 +292,14 @@ def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     ):
         raise NativeError("sm9_sign_master_key_info_encrypt_to_der failed")
 
-    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
+    _write_pem_windows(path, "ENCRYPTED SM9 SIGN MASTER KEY", buf.raw[: outlen.value])
 
 
 def sm9_sign_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
     """
     Import SM9 signature master key from PEM file (Windows-compatible).
     """
-    der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
+    der_data = _read_pem_windows(path, "ENCRYPTED SM9 SIGN MASTER KEY")
     buf = create_string_buffer(der_data)
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
@@ -335,14 +335,14 @@ def sm9_enc_key_info_encrypt_to_pem_windows(key, path, passwd):
     ):
         raise NativeError("sm9_enc_key_info_encrypt_to_der failed")
 
-    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
+    _write_pem_windows(path, "ENCRYPTED SM9 ENC PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm9_enc_key_info_decrypt_from_pem_windows(key, path, passwd):
     """
     Import SM9 encryption key from PEM file (Windows-compatible).
     """
-    der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
+    der_data = _read_pem_windows(path, "ENCRYPTED SM9 ENC PRIVATE KEY")
     buf = create_string_buffer(der_data)
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
@@ -378,14 +378,14 @@ def sm9_sign_key_info_encrypt_to_pem_windows(key, path, passwd):
     ):
         raise NativeError("sm9_sign_key_info_encrypt_to_der failed")
 
-    _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
+    _write_pem_windows(path, "ENCRYPTED SM9 SIGN PRIVATE KEY", buf.raw[: outlen.value])
 
 
 def sm9_sign_key_info_decrypt_from_pem_windows(key, path, passwd):
     """
     Import SM9 signature key from PEM file (Windows-compatible).
     """
-    der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
+    der_data = _read_pem_windows(path, "ENCRYPTED SM9 SIGN PRIVATE KEY")
     buf = create_string_buffer(der_data)
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
