@@ -15,7 +15,7 @@ This module should not be imported directly by users.
 import datetime
 from ctypes import byref, c_char_p, c_int, c_size_t, c_ulong, c_void_p, create_string_buffer
 
-from gmssl._constants import _ASN1_TAG_IA5String, _ASN1_TAG_SEQUENCE, _ASN1_TAG_SET
+from gmssl._constants import _ASN1_TAG_SEQUENCE, _ASN1_TAG_SET, _ASN1_TAG_IA5String
 from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, gmssl, libc
 from gmssl._sm2 import Sm2Key
@@ -231,7 +231,7 @@ class Sm2Certificate:
         cacert_raw = cacert.get_raw()
         sm2_id = sm2_id.encode("utf-8")
 
-        if (
+        return (
             gmssl.x509_cert_verify_by_ca_cert(
                 self._cert,
                 c_size_t(len(self._cert)),
@@ -240,8 +240,5 @@ class Sm2Certificate:
                 c_char_p(sm2_id),
                 c_size_t(len(sm2_id)),
             )
-            != 1
-        ):
-            return False
-        return True
-
+            == 1
+        )

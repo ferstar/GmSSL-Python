@@ -25,4 +25,3 @@ def rand_bytes(size):
     buf = create_string_buffer(size)
     gmssl.rand_bytes(buf, c_size_t(size))
     return buf.raw
-

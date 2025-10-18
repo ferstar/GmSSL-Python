@@ -130,15 +130,15 @@ jobs:
   build-macos-arm64:
     name: Build GmSSL for macOS (arm64)
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout GmSSL-Python
         uses: actions/checkout@v4
-      
+
       - name: Install build dependencies
         run: |
           brew install cmake
-      
+
       - name: Clone GmSSL
         run: |
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
@@ -150,7 +150,7 @@ jobs:
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
           make -j$(sysctl -n hw.ncpu)
-      
+
       - name: Copy library
         run: |
           mkdir -p artifacts/macos-arm64
@@ -164,7 +164,7 @@ jobs:
 
           echo "=== SM9 symbols check ==="
           nm -g artifacts/macos-arm64/libgmssl.3.dylib | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -175,15 +175,15 @@ jobs:
   build-macos-x86_64:
     name: Build GmSSL for macOS (x86_64)
     runs-on: macos-13  # Intel-based runner
-    
+
     steps:
       - name: Checkout GmSSL-Python
         uses: actions/checkout@v4
-      
+
       - name: Install build dependencies
         run: |
           brew install cmake
-      
+
       - name: Clone GmSSL
         run: |
           git clone --depth 1 --branch v${{ github.event.inputs.gmssl_version }} \
@@ -195,7 +195,7 @@ jobs:
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
           make -j$(sysctl -n hw.ncpu)
-      
+
       - name: Copy library
         run: |
           mkdir -p artifacts/macos-x86_64
@@ -209,7 +209,7 @@ jobs:
 
           echo "=== SM9 symbols check ==="
           nm -g artifacts/macos-x86_64/libgmssl.3.dylib | grep -i sm9_sign | head -5 || echo "No SM9 symbols found"
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -412,16 +412,16 @@ jobs:
     name: Create PR with updated libraries
     needs: [test-libraries]
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout GmSSL-Python
         uses: actions/checkout@v4
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: downloaded-libs
-      
+
       - name: Organize libraries
         run: |
           mkdir -p src/gmssl/_libs
@@ -495,4 +495,3 @@ jobs:
             ### License
             GmSSL is licensed under Apache-2.0, same as this project.
             Redistribution is permitted under the terms of the Apache License 2.0.
-

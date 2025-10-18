@@ -57,4 +57,3 @@ class Zuc(Structure):
         if gmssl.zuc_encrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
             raise NativeError("libgmssl inner error")
         return outbuf[: outlen.value]
-

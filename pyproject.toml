@@ -47,6 +47,7 @@ url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 [dependency-groups]
 dev = [
     "pip>=24.0",
+    "pre-commit>=2.21.0",
     "pytest>=7.4.4",
     "ruff>=0.14.1",
     "setuptools>=68.0.0",
@@ -54,7 +55,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py37"
+target-version = "py38"
 
 [tool.ruff.lint]
 # Enable essential rules - no bullshit, just real problems
@@ -73,6 +74,7 @@ select = [
 # Ignore rules that conflict with good taste
 ignore = [
     "E501",  # Line too long - let formatter handle it
+    "N801",  # Class name should use CapWords - ignore for C struct compatibility
 ]
 
 [tool.ruff.format]

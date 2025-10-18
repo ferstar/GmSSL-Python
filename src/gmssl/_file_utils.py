@@ -22,19 +22,19 @@ from gmssl._lib import libc
 def open_file(path, mode):
     """
     Context manager for safe file operations with automatic cleanup.
-    
+
     Ensures file descriptors are always closed, even if an exception occurs.
-    
+
     Args:
         path: File path (str or bytes)
         mode: File mode (e.g., "rb", "wb")
-    
+
     Yields:
         c_void_p: File pointer for use with libc functions
-    
+
     Raises:
         OSError: If file cannot be opened
-    
+
     Example:
         with open_file("key.pem", "wb") as fp:
             gmssl.sm2_private_key_info_encrypt_to_pem(key, passwd, fp)
@@ -43,15 +43,14 @@ def open_file(path, mode):
         path = path.encode("utf-8")
     if isinstance(mode, str):
         mode = mode.encode("utf-8")
-    
+
     libc.fopen.restype = c_void_p
     fp = libc.fopen(path, mode)
-    
+
     if not fp:
         raise OSError(f"Cannot open file: {path.decode('utf-8')}")
-    
+
     try:
         yield c_void_p(fp)
     finally:
         libc.fclose(c_void_p(fp))
-

@@ -33,4 +33,3 @@ def gmssl_library_version_str():
 
 
 GMSSL_LIBRARY_VERSION = gmssl_library_version_str()
-

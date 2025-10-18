@@ -100,10 +100,10 @@ If you need to update libraries manually:
    ```bash
    # Linux
    cp bin/libgmssl.so.3 ../GmSSL-Python/src/gmssl/_libs/
-   
+
    # macOS
    cp bin/libgmssl.3.dylib ../GmSSL-Python/src/gmssl/_libs/
-   
+
    # Windows
    cp bin/Release/gmssl.dll ../GmSSL-Python/src/gmssl/_libs/
    ```
@@ -312,4 +312,3 @@ Or create a separate workflow for PyPI publishing (recommended).
 4. **Tag naming**
    - Always prefix with `v`: `v2.2.3`
    - Use annotated tags: `git tag -a v2.2.3 -m "Release version 2.2.3"`
-

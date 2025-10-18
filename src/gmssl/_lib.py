@@ -13,8 +13,8 @@ This module should not be imported directly by users.
 """
 
 import os
-import sys
 import platform
+import sys
 from ctypes import cdll
 from ctypes.util import find_library
 
@@ -191,4 +191,3 @@ def raise_on_error(result, func_name):
     """
     if result != 1:
         raise NativeError(f"{func_name} failed")
-

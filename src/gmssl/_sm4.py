@@ -15,7 +15,7 @@ This module should not be imported directly by users.
 from ctypes import Structure, byref, c_size_t, c_uint8, c_uint32, c_uint64, create_string_buffer
 
 from gmssl._constants import (
-    DO_DECRYPT,
+    _SM4_NUM_ROUNDS,
     DO_ENCRYPT,
     SM4_BLOCK_SIZE,
     SM4_GCM_DEFAULT_TAG_SIZE,
@@ -23,9 +23,8 @@ from gmssl._constants import (
     SM4_GCM_MAX_TAG_SIZE,
     SM4_GCM_MIN_IV_SIZE,
     SM4_KEY_SIZE,
-    _SM4_NUM_ROUNDS,
 )
-from gmssl._lib import NativeError, StateError, gmssl
+from gmssl._lib import NativeError, gmssl
 
 # =============================================================================
 # SM4 Block Cipher
@@ -135,7 +134,9 @@ class Sm4Ctr(Structure):
         outbuf = create_string_buffer(len(data) + SM4_BLOCK_SIZE)
         outlen = c_size_t()
         if (
-            gmssl.sm4_ctr_encrypt_update(byref(self), data, c_size_t(len(data)), outbuf, byref(outlen))
+            gmssl.sm4_ctr_encrypt_update(
+                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+            )
             != 1
         ):
             raise NativeError("libgmssl inner error")
@@ -254,4 +255,3 @@ class Sm4Gcm(Structure):
             if gmssl.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen)) != 1:
                 raise NativeError("libgmssl inner error")
         return outbuf[: outlen.value]
-

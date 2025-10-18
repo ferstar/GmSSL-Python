@@ -292,4 +292,3 @@ This ensures the correct library is loaded on multi-architecture systems.
 - [ ] Automated version updates via Dependabot
 - [ ] Binary size optimization (strip symbols)
 - [ ] Platform-specific wheels (manylinux, etc.)
-

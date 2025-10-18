@@ -17,7 +17,6 @@ from ctypes import (
     byref,
     c_char_p,
     c_size_t,
-    c_uint8,
     c_uint64,
     create_string_buffer,
 )
@@ -75,10 +74,7 @@ class Sm9EncKey(Structure):
     def import_encrypted_private_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
         with open_file(path, "rb") as fp:
-            if (
-                gmssl.sm9_enc_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
+            if gmssl.sm9_enc_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp) != 1:
                 raise NativeError("libgmssl inner error")
         self._has_private_key = True
 
@@ -87,9 +83,7 @@ class Sm9EncKey(Structure):
             raise TypeError("has no private key")
         passwd = passwd.encode("utf-8")
         with open_file(path, "wb") as fp:
-            if (
-                gmssl.sm9_enc_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1
-            ):
+            if gmssl.sm9_enc_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
                 raise NativeError("libgmssl inner error")
 
     def import_enc_master_public_key_pem(self, path):
@@ -175,9 +169,7 @@ class Sm9EncMasterKey(Structure):
         passwd = passwd.encode("utf-8")
         with open_file(path, "rb") as fp:
             if (
-                gmssl.sm9_enc_master_key_info_decrypt_from_pem(
-                    byref(self), c_char_p(passwd), fp
-                )
+                gmssl.sm9_enc_master_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
                 != 1
             ):
                 raise NativeError("libgmssl inner error")
@@ -189,12 +181,7 @@ class Sm9EncMasterKey(Structure):
             raise TypeError("has no master key")
         passwd = passwd.encode("utf-8")
         with open_file(path, "wb") as fp:
-            if (
-                gmssl.sm9_enc_master_key_info_encrypt_to_pem(
-                    byref(self), c_char_p(passwd), fp
-                )
-                != 1
-            ):
+            if gmssl.sm9_enc_master_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
                 raise NativeError("libgmssl inner error")
 
     def export_public_master_key_pem(self, path):
@@ -260,10 +247,7 @@ class Sm9SignKey(Structure):
     def import_encrypted_private_key_info_pem(self, path, passwd):
         passwd = passwd.encode("utf-8")
         with open_file(path, "rb") as fp:
-            if (
-                gmssl.sm9_sign_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
-                != 1
-            ):
+            if gmssl.sm9_sign_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp) != 1:
                 raise NativeError("libgmssl inner error")
         self._has_public_key = True
         self._has_private_key = True
@@ -273,9 +257,7 @@ class Sm9SignKey(Structure):
             raise TypeError("has no private key")
         passwd = passwd.encode("utf-8")
         with open_file(path, "wb") as fp:
-            if (
-                gmssl.sm9_sign_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1
-            ):
+            if gmssl.sm9_sign_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp) != 1:
                 raise NativeError("libgmssl inner error")
 
     def import_sign_master_public_key_pem(self, path):
@@ -324,9 +306,7 @@ class Sm9SignMasterKey(Structure):
         passwd = passwd.encode("utf-8")
         with open_file(path, "rb") as fp:
             if (
-                gmssl.sm9_sign_master_key_info_decrypt_from_pem(
-                    byref(self), c_char_p(passwd), fp
-                )
+                gmssl.sm9_sign_master_key_info_decrypt_from_pem(byref(self), c_char_p(passwd), fp)
                 != 1
             ):
                 raise NativeError("libgmssl inner error")
@@ -339,9 +319,7 @@ class Sm9SignMasterKey(Structure):
         passwd = passwd.encode("utf-8")
         with open_file(path, "wb") as fp:
             if (
-                gmssl.sm9_sign_master_key_info_encrypt_to_pem(
-                    byref(self), c_char_p(passwd), fp
-                )
+                gmssl.sm9_sign_master_key_info_encrypt_to_pem(byref(self), c_char_p(passwd), fp)
                 != 1
             ):
                 raise NativeError("libgmssl inner error")
@@ -395,13 +373,13 @@ class Sm9Signature(Structure):
         siglen = c_size_t(SM9_SIGNATURE_SIZE)
         if gmssl.sm9_sign_finish(byref(self), byref(sign_key), sig, byref(siglen)) != 1:
             raise NativeError("libgmssl inner error")
-        return sig[:siglen.value]
+        return sig[: siglen.value]
 
     def verify(self, signature, public_master_key, signer_id):
         if self._sign != DO_VERIFY:
             raise StateError("not verify state")
         signer_id = signer_id.encode("utf-8")
-        if (
+        return (
             gmssl.sm9_verify_finish(
                 byref(self),
                 signature,
@@ -410,8 +388,5 @@ class Sm9Signature(Structure):
                 c_char_p(signer_id),
                 c_size_t(len(signer_id)),
             )
-            != 1
-        ):
-            return False
-        return True
-
+            == 1
+        )

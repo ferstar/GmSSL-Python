@@ -24,6 +24,8 @@ from ctypes import (
 )
 
 from gmssl._constants import (
+    _SM3_BLOCK_SIZE,
+    _SM3_STATE_WORDS,
     SM3_DIGEST_SIZE,
     SM3_HMAC_MAX_KEY_SIZE,
     SM3_HMAC_MIN_KEY_SIZE,
@@ -32,8 +34,6 @@ from gmssl._constants import (
     SM3_PBKDF2_MAX_KEY_SIZE,
     SM3_PBKDF2_MAX_SALT_SIZE,
     SM3_PBKDF2_MIN_ITER,
-    _SM3_BLOCK_SIZE,
-    _SM3_STATE_WORDS,
 )
 from gmssl._lib import NativeError, gmssl
 
@@ -125,4 +125,3 @@ def sm3_pbkdf2(passwd, salt, iterator, keylen):
         raise NativeError("libgmssl inner error")
 
     return key.raw
-
