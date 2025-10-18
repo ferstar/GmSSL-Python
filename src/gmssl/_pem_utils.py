@@ -439,12 +439,38 @@ def x509_cert_from_pem_windows(path):
 # =============================================================================
 
 
+def _call_platform_pem_function(func_name, key, path, file_mode, extra_args=()):
+    """
+    Generic cross-platform wrapper for PEM operations.
+
+    Automatically selects Windows-compatible or FILE*-based implementation.
+    Windows function name is derived by appending '_windows' to func_name.
+
+    Args:
+        func_name: Base function name (e.g., "sm2_public_key_info_to_pem")
+        key: Key object (SM2Key, Sm9EncMasterKey, etc.)
+        path: File path (str)
+        file_mode: File mode for non-Windows platforms ("rb" or "wb")
+        extra_args: Additional arguments tuple (e.g., (c_char_p(passwd),))
+
+    Raises:
+        NativeError: If the operation fails
+    """
+    if sys.platform == "win32":
+        # Windows: Use Python-based implementation
+        windows_func = globals()[f"{func_name}_windows"]
+        windows_func(key, path, *extra_args)
+    else:
+        # Linux/macOS: Use FILE* for best performance
+        with open_file(path, file_mode) as fp:
+            gmssl_func = getattr(gmssl, func_name)
+            if gmssl_func(byref(key), *extra_args, fp) != 1:
+                raise NativeError(f"{func_name} failed")
+
+
 def pem_export_encrypted_key(key, path, passwd, export_func_name):
     """
     Cross-platform wrapper for exporting encrypted keys to PEM.
-
-    Automatically selects Windows-compatible or FILE*-based implementation.
-    Windows function name is derived by appending '_windows' to export_func_name.
 
     Args:
         key: Key object (SM2Key, Sm9EncMasterKey, etc.)
@@ -453,24 +479,12 @@ def pem_export_encrypted_key(key, path, passwd, export_func_name):
         export_func_name: Name of the gmssl export function
                          (e.g., "sm2_private_key_info_encrypt_to_pem")
     """
-    if sys.platform == "win32":
-        # Automatically derive Windows function name
-        windows_func_name = f"{export_func_name}_windows"
-        windows_func = globals()[windows_func_name]
-        windows_func(key, path, passwd)
-    else:
-        # Linux/macOS: Use FILE* for best performance
-        with open_file(path, "wb") as fp:
-            if getattr(gmssl, export_func_name)(byref(key), c_char_p(passwd), fp) != 1:
-                raise NativeError(f"{export_func_name} failed")
+    _call_platform_pem_function(export_func_name, key, path, "wb", extra_args=(c_char_p(passwd),))
 
 
 def pem_import_encrypted_key(key, path, passwd, import_func_name):
     """
     Cross-platform wrapper for importing encrypted keys from PEM.
-
-    Automatically selects Windows-compatible or FILE*-based implementation.
-    Windows function name is derived by appending '_windows' to import_func_name.
 
     Args:
         key: Key object (SM2Key, Sm9EncMasterKey, etc.)
@@ -479,24 +493,12 @@ def pem_import_encrypted_key(key, path, passwd, import_func_name):
         import_func_name: Name of the gmssl import function
                          (e.g., "sm2_private_key_info_decrypt_from_pem")
     """
-    if sys.platform == "win32":
-        # Automatically derive Windows function name
-        windows_func_name = f"{import_func_name}_windows"
-        windows_func = globals()[windows_func_name]
-        windows_func(key, path, passwd)
-    else:
-        # Linux/macOS: Use FILE* for best performance
-        with open_file(path, "rb") as fp:
-            if getattr(gmssl, import_func_name)(byref(key), c_char_p(passwd), fp) != 1:
-                raise NativeError(f"{import_func_name} failed")
+    _call_platform_pem_function(import_func_name, key, path, "rb", extra_args=(c_char_p(passwd),))
 
 
 def pem_export_public_key(key, path, export_func_name):
     """
     Cross-platform wrapper for exporting public keys to PEM.
-
-    Automatically selects Windows-compatible or FILE*-based implementation.
-    Windows function name is derived by appending '_windows' to export_func_name.
 
     Args:
         key: Key object (SM2Key, etc.)
@@ -504,24 +506,12 @@ def pem_export_public_key(key, path, export_func_name):
         export_func_name: Name of the gmssl export function
                          (e.g., "sm2_public_key_info_to_pem")
     """
-    if sys.platform == "win32":
-        # Automatically derive Windows function name
-        windows_func_name = f"{export_func_name}_windows"
-        windows_func = globals()[windows_func_name]
-        windows_func(key, path)
-    else:
-        # Linux/macOS: Use FILE* for best performance
-        with open_file(path, "wb") as fp:
-            if getattr(gmssl, export_func_name)(byref(key), fp) != 1:
-                raise NativeError(f"{export_func_name} failed")
+    _call_platform_pem_function(export_func_name, key, path, "wb")
 
 
 def pem_import_public_key(key, path, import_func_name):
     """
     Cross-platform wrapper for importing public keys from PEM.
-
-    Automatically selects Windows-compatible or FILE*-based implementation.
-    Windows function name is derived by appending '_windows' to import_func_name.
 
     Args:
         key: Key object (SM2Key, etc.)
@@ -529,13 +519,4 @@ def pem_import_public_key(key, path, import_func_name):
         import_func_name: Name of the gmssl import function
                          (e.g., "sm2_public_key_info_from_pem")
     """
-    if sys.platform == "win32":
-        # Automatically derive Windows function name
-        windows_func_name = f"{import_func_name}_windows"
-        windows_func = globals()[windows_func_name]
-        windows_func(key, path)
-    else:
-        # Linux/macOS: Use FILE* for best performance
-        with open_file(path, "rb") as fp:
-            if getattr(gmssl, import_func_name)(byref(key), fp) != 1:
-                raise NativeError(f"{import_func_name} failed")
+    _call_platform_pem_function(import_func_name, key, path, "rb")
