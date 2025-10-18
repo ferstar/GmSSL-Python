@@ -21,7 +21,7 @@ the native FILE*-based functions for best performance.
 
 import base64
 import sys
-from ctypes import byref, c_char_p, c_size_t, c_void_p, create_string_buffer
+from ctypes import POINTER, byref, c_char_p, c_size_t, c_uint8, c_void_p, create_string_buffer
 
 from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, gmssl, libc
@@ -107,11 +107,12 @@ def sm2_public_key_info_from_pem_windows(key, path):
     Import SM2 public key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "PUBLIC KEY")
-    # Create a pointer to the DER data
-    der_ptr_value = c_char_p(der_data)
+    # Create a buffer and pointer like the C implementation
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
-    if gmssl.sm2_public_key_info_from_der(byref(key), byref(der_ptr_value), byref(der_len)) != 1:
+    if gmssl.sm2_public_key_info_from_der(byref(key), byref(cp), byref(der_len)) != 1:
         raise NativeError("sm2_public_key_info_from_der failed")
 
 
@@ -149,8 +150,9 @@ def sm2_private_key_info_decrypt_from_pem_windows(key, path, passwd):
     # Read PEM file and decode to DER
     der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
 
-    # Parse DER format
-    der_ptr = c_char_p(der_data)
+    # Parse DER format - create buffer and pointer like the C implementation
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
     attrs_ptr = c_void_p()
     attrs_len = c_size_t()
@@ -161,7 +163,7 @@ def sm2_private_key_info_decrypt_from_pem_windows(key, path, passwd):
             byref(attrs_ptr),
             byref(attrs_len),
             c_char_p(passwd),
-            byref(der_ptr),
+            byref(cp),
             byref(der_len),
         )
         != 1
@@ -194,13 +196,11 @@ def sm9_enc_master_public_key_from_pem_windows(mpk, path):
     Import SM9 encryption master public key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "PUBLIC KEY")
-    der_ptr_value = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
-    if (
-        gmssl.sm9_enc_master_public_key_from_der(byref(mpk), byref(der_ptr_value), byref(der_len))
-        != 1
-    ):
+    if gmssl.sm9_enc_master_public_key_from_der(byref(mpk), byref(cp), byref(der_len)) != 1:
         raise NativeError("sm9_enc_master_public_key_from_der failed")
 
 
@@ -229,12 +229,13 @@ def sm9_enc_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
     Import SM9 encryption master key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
-    der_ptr = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
     if (
         gmssl.sm9_enc_master_key_info_decrypt_from_der(
-            byref(msk), c_char_p(passwd), byref(der_ptr), byref(der_len)
+            byref(msk), c_char_p(passwd), byref(cp), byref(der_len)
         )
         != 1
     ):
@@ -266,13 +267,11 @@ def sm9_sign_master_public_key_from_pem_windows(mpk, path):
     Import SM9 signature master public key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "PUBLIC KEY")
-    der_ptr_value = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
-    if (
-        gmssl.sm9_sign_master_public_key_from_der(byref(mpk), byref(der_ptr_value), byref(der_len))
-        != 1
-    ):
+    if gmssl.sm9_sign_master_public_key_from_der(byref(mpk), byref(cp), byref(der_len)) != 1:
         raise NativeError("sm9_sign_master_public_key_from_der failed")
 
 
@@ -301,12 +300,13 @@ def sm9_sign_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
     Import SM9 signature master key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
-    der_ptr = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
     if (
         gmssl.sm9_sign_master_key_info_decrypt_from_der(
-            byref(msk), c_char_p(passwd), byref(der_ptr), byref(der_len)
+            byref(msk), c_char_p(passwd), byref(cp), byref(der_len)
         )
         != 1
     ):
@@ -343,12 +343,13 @@ def sm9_enc_key_info_decrypt_from_pem_windows(key, path, passwd):
     Import SM9 encryption key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
-    der_ptr = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
     if (
         gmssl.sm9_enc_key_info_decrypt_from_der(
-            byref(key), c_char_p(passwd), byref(der_ptr), byref(der_len)
+            byref(key), c_char_p(passwd), byref(cp), byref(der_len)
         )
         != 1
     ):
@@ -385,12 +386,13 @@ def sm9_sign_key_info_decrypt_from_pem_windows(key, path, passwd):
     Import SM9 signature key from PEM file (Windows-compatible).
     """
     der_data = _read_pem_windows(path, "ENCRYPTED PRIVATE KEY")
-    der_ptr = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
     if (
         gmssl.sm9_sign_key_info_decrypt_from_der(
-            byref(key), c_char_p(passwd), byref(der_ptr), byref(der_len)
+            byref(key), c_char_p(passwd), byref(cp), byref(der_len)
         )
         != 1
     ):
@@ -417,16 +419,14 @@ def x509_cert_from_pem_windows(path):
         tuple: (cert_data, cert_len) - Certificate DER data and length
     """
     der_data = _read_pem_windows(path, "CERTIFICATE")
-    der_ptr = c_char_p(der_data)
+    buf = create_string_buffer(der_data)
+    cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
     cert_ptr = c_void_p()
     cert_len = c_size_t()
 
-    if (
-        gmssl.x509_cert_from_der(byref(cert_ptr), byref(cert_len), byref(der_ptr), byref(der_len))
-        != 1
-    ):
+    if gmssl.x509_cert_from_der(byref(cert_ptr), byref(cert_len), byref(cp), byref(der_len)) != 1:
         raise NativeError("x509_cert_from_der failed")
 
     # Copy certificate data
