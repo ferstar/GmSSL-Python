@@ -14,11 +14,8 @@ Following Linus's philosophy: "Talk is cheap. Show me the code."
 Simple functions, no unnecessary abstractions.
 """
 
-import sys
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from gmssl import (
     DO_DECRYPT,
@@ -224,7 +221,6 @@ def test_zuc_encrypt_decrypt():
 
 
 # SM2 key tests
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows PEM export/import not working yet")
 def test_sm2_key_generation_and_export():
     """SM2 key generation, export, and import should work."""
     dgst = bytes.fromhex("66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0")
@@ -299,7 +295,6 @@ def test_sm2_signature_context():
 
 
 # SM9 encryption test
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows PEM export/import not working yet")
 def test_sm9_enc_decrypt():
     """SM9 encryption and decryption should work."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -327,7 +322,6 @@ def test_sm9_enc_decrypt():
 
 
 # SM9 signature test
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows PEM export/import not working yet")
 def test_sm9_sign_verify():
     """SM9 signature and verification should work."""
     with tempfile.TemporaryDirectory() as tmpdir:
