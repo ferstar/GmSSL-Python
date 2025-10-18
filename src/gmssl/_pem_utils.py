@@ -132,12 +132,7 @@ def sm2_private_key_info_encrypt_to_pem_windows(key, path, passwd):
     p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
-    if (
-        gmssl.sm2_private_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(p), byref(outlen)
-        )
-        != 1
-    ):
+    if gmssl.sm2_private_key_info_encrypt_to_der(byref(key), passwd, byref(p), byref(outlen)) != 1:
         raise NativeError("sm2_private_key_info_encrypt_to_der failed")
 
     _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", buf.raw[: outlen.value])
@@ -162,7 +157,7 @@ def sm2_private_key_info_decrypt_from_pem_windows(key, path, passwd):
             byref(key),
             byref(attrs_ptr),
             byref(attrs_len),
-            c_char_p(passwd),
+            passwd,
             byref(cp),
             byref(der_len),
         )
@@ -214,9 +209,7 @@ def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     outlen = c_size_t(0)
 
     if (
-        gmssl.sm9_enc_master_key_info_encrypt_to_der(
-            byref(msk), c_char_p(passwd), byref(p), byref(outlen)
-        )
+        gmssl.sm9_enc_master_key_info_encrypt_to_der(byref(msk), passwd, byref(p), byref(outlen))
         != 1
     ):
         raise NativeError("sm9_enc_master_key_info_encrypt_to_der failed")
@@ -235,7 +228,7 @@ def sm9_enc_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
 
     if (
         gmssl.sm9_enc_master_key_info_decrypt_from_der(
-            byref(msk), c_char_p(passwd), byref(cp), byref(der_len)
+            byref(msk), passwd, byref(cp), byref(der_len)
         )
         != 1
     ):
@@ -285,9 +278,7 @@ def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     outlen = c_size_t(0)
 
     if (
-        gmssl.sm9_sign_master_key_info_encrypt_to_der(
-            byref(msk), c_char_p(passwd), byref(p), byref(outlen)
-        )
+        gmssl.sm9_sign_master_key_info_encrypt_to_der(byref(msk), passwd, byref(p), byref(outlen))
         != 1
     ):
         raise NativeError("sm9_sign_master_key_info_encrypt_to_der failed")
@@ -306,7 +297,7 @@ def sm9_sign_master_key_info_decrypt_from_pem_windows(msk, path, passwd):
 
     if (
         gmssl.sm9_sign_master_key_info_decrypt_from_der(
-            byref(msk), c_char_p(passwd), byref(cp), byref(der_len)
+            byref(msk), passwd, byref(cp), byref(der_len)
         )
         != 1
     ):
@@ -327,10 +318,7 @@ def sm9_enc_key_info_encrypt_to_pem_windows(key, path, passwd):
     p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
-    if (
-        gmssl.sm9_enc_key_info_encrypt_to_der(byref(key), c_char_p(passwd), byref(p), byref(outlen))
-        != 1
-    ):
+    if gmssl.sm9_enc_key_info_encrypt_to_der(byref(key), passwd, byref(p), byref(outlen)) != 1:
         raise NativeError("sm9_enc_key_info_encrypt_to_der failed")
 
     _write_pem_windows(path, "ENCRYPTED SM9 ENC PRIVATE KEY", buf.raw[: outlen.value])
@@ -345,12 +333,7 @@ def sm9_enc_key_info_decrypt_from_pem_windows(key, path, passwd):
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
-    if (
-        gmssl.sm9_enc_key_info_decrypt_from_der(
-            byref(key), c_char_p(passwd), byref(cp), byref(der_len)
-        )
-        != 1
-    ):
+    if gmssl.sm9_enc_key_info_decrypt_from_der(byref(key), passwd, byref(cp), byref(der_len)) != 1:
         raise NativeError("sm9_enc_key_info_decrypt_from_der failed")
 
 
@@ -368,12 +351,7 @@ def sm9_sign_key_info_encrypt_to_pem_windows(key, path, passwd):
     p = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     outlen = c_size_t(0)
 
-    if (
-        gmssl.sm9_sign_key_info_encrypt_to_der(
-            byref(key), c_char_p(passwd), byref(p), byref(outlen)
-        )
-        != 1
-    ):
+    if gmssl.sm9_sign_key_info_encrypt_to_der(byref(key), passwd, byref(p), byref(outlen)) != 1:
         raise NativeError("sm9_sign_key_info_encrypt_to_der failed")
 
     _write_pem_windows(path, "ENCRYPTED SM9 SIGN PRIVATE KEY", buf.raw[: outlen.value])
@@ -388,12 +366,7 @@ def sm9_sign_key_info_decrypt_from_pem_windows(key, path, passwd):
     cp = POINTER(c_uint8)(c_uint8.from_buffer(buf))
     der_len = c_size_t(len(der_data))
 
-    if (
-        gmssl.sm9_sign_key_info_decrypt_from_der(
-            byref(key), c_char_p(passwd), byref(cp), byref(der_len)
-        )
-        != 1
-    ):
+    if gmssl.sm9_sign_key_info_decrypt_from_der(byref(key), passwd, byref(cp), byref(der_len)) != 1:
         raise NativeError("sm9_sign_key_info_decrypt_from_der failed")
 
 

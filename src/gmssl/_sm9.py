@@ -28,7 +28,6 @@ from gmssl._constants import (
     SM9_MAX_PLAINTEXT_SIZE,
     SM9_SIGNATURE_SIZE,
 )
-from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, StateError, gmssl
 
 # Import cross-platform PEM wrappers
@@ -91,9 +90,7 @@ class Sm9EncKey(Structure):
         pem_export_encrypted_key(self, path, passwd, "sm9_enc_key_info_encrypt_to_pem")
 
     def import_enc_master_public_key_pem(self, path):
-        with open_file(path, "rb") as fp:
-            if gmssl.sm9_enc_master_public_key_from_pem(byref(self), fp) != 1:
-                raise NativeError("libgmssl inner error")
+        pem_import_public_key(self, path, "sm9_enc_master_public_key_from_pem")
 
     def encrypt(self, plaintext):
         if len(plaintext) > SM9_MAX_PLAINTEXT_SIZE:
@@ -250,9 +247,7 @@ class Sm9SignKey(Structure):
         pem_export_encrypted_key(self, path, passwd, "sm9_sign_key_info_encrypt_to_pem")
 
     def import_sign_master_public_key_pem(self, path):
-        with open_file(path, "rb") as fp:
-            if gmssl.sm9_sign_master_public_key_from_pem(byref(self), fp) != 1:
-                raise NativeError("libgmssl inner error")
+        pem_import_public_key(self, path, "sm9_sign_master_public_key_from_pem")
         self._has_public_key = True
         self._has_private_key = False
 
