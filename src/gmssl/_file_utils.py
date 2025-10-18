@@ -53,4 +53,7 @@ def open_file(path, mode):
     try:
         yield c_void_p(fp)
     finally:
+        # Flush buffer before closing to ensure all data is written
+        # This is especially important on macOS where buffering behavior differs
+        libc.fflush(c_void_p(fp))
         libc.fclose(c_void_p(fp))
