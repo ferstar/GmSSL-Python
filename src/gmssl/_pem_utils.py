@@ -21,7 +21,7 @@ the native FILE*-based functions for best performance.
 
 import base64
 import sys
-from ctypes import byref, c_char_p, c_size_t, c_void_p, create_string_buffer
+from ctypes import POINTER, byref, c_char_p, c_size_t, c_uint8, c_void_p, create_string_buffer
 
 from gmssl._file_utils import open_file
 from gmssl._lib import NativeError, gmssl, libc
@@ -94,7 +94,7 @@ def sm2_private_key_info_encrypt_to_pem_windows(key, path, passwd):
     Uses DER export + Python file I/O to avoid FILE* cross-DLL issues.
     """
     # Export to DER format
-    out_ptr = c_void_p()
+    out_ptr = POINTER(c_uint8)()
     outlen = c_size_t()
 
     if (
@@ -108,7 +108,7 @@ def sm2_private_key_info_encrypt_to_pem_windows(key, path, passwd):
     try:
         # Copy DER data to Python bytes
         der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen)
+        libc.memcpy(der_data, out_ptr, outlen.value)
 
         # Write PEM file
         _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
@@ -153,7 +153,7 @@ def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     Export SM9 encryption master key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
+    out_ptr = POINTER(c_uint8)()
     outlen = c_size_t()
 
     if (
@@ -166,7 +166,7 @@ def sm9_enc_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
 
     try:
         der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen)
+        libc.memcpy(der_data, out_ptr, outlen.value)
         _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
     finally:
         libc.free(out_ptr)
@@ -198,7 +198,7 @@ def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
     """
     Export SM9 signature master key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
+    out_ptr = POINTER(c_uint8)()
     outlen = c_size_t()
 
     if (
@@ -211,7 +211,7 @@ def sm9_sign_master_key_info_encrypt_to_pem_windows(msk, path, passwd):
 
     try:
         der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen)
+        libc.memcpy(der_data, out_ptr, outlen.value)
         _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
     finally:
         libc.free(out_ptr)
@@ -243,7 +243,7 @@ def sm9_enc_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     Export SM9 encryption key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
+    out_ptr = POINTER(c_uint8)()
     outlen = c_size_t()
 
     if (
@@ -256,7 +256,7 @@ def sm9_enc_key_info_encrypt_to_pem_windows(key, path, passwd):
 
     try:
         der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen)
+        libc.memcpy(der_data, out_ptr, outlen.value)
         _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
     finally:
         libc.free(out_ptr)
@@ -288,7 +288,7 @@ def sm9_sign_key_info_encrypt_to_pem_windows(key, path, passwd):
     """
     Export SM9 signature key to PEM file (Windows-compatible).
     """
-    out_ptr = c_void_p()
+    out_ptr = POINTER(c_uint8)()
     outlen = c_size_t()
 
     if (
@@ -301,7 +301,7 @@ def sm9_sign_key_info_encrypt_to_pem_windows(key, path, passwd):
 
     try:
         der_data = create_string_buffer(outlen.value)
-        libc.memcpy(der_data, out_ptr, outlen)
+        libc.memcpy(der_data, out_ptr, outlen.value)
         _write_pem_windows(path, "ENCRYPTED PRIVATE KEY", der_data.raw)
     finally:
         libc.free(out_ptr)
