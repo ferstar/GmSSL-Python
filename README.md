@@ -158,15 +158,22 @@ $ pip show gmssl-python
 
 分别查看当前`gmssl-python`的版本和`libgmssl`的版本。
 
-编写一个简单的测试程序`sm3.py`
+编写一个简单的测试程序`demo.py`
 
 ```python
-from gmssl import *
+from gmssl import Sm3
 
-sm3 = Sm3()
-sm3.update(b'abc')
-dgst = sm3.digest()
-print("sm3('abc') : " + dgst.hex())
+def main():
+    """
+    Computes the SM3 hash of the string 'abc' and prints it.
+    """
+    sm3 = Sm3()
+    sm3.update(b'abc')
+    dgst = sm3.digest()
+    print(f"sm3('abc') : {dgst.hex()}")
+
+if __name__ == '__main__':
+    main()
 ```
 
 执行这个程序
@@ -303,14 +310,14 @@ gmssl.Sm3()
 
 下面的例子展示了如何通过类`Sm3`计算字符串的SM3哈希值。
 
-```Python
->>> from gmssl import *
+```python
+>>> from gmssl import Sm3
 >>> sm3 = Sm3()
 >>> sm3.update(b'abc')
->>> sm3.digest().hex()
+>>> dgst = sm3.digest()
+>>> print(dgst.hex())
+'66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0'
 ```
-
-注意这里提供的消息字符串是`bytes`格式的。这个例子的源代码在`examples/sm3.py`文件中，编译并运行这个例子。
 
 ```bash
 $ python examples/sm3.py
@@ -332,7 +339,7 @@ $ echo -n abc | gmssl sm3
 如果需要哈希的数据来自于网络或者文件，那么应用可能需要多次读取才能获得全部的数据。在通过`Sm3`计算哈希值时，应用不需要通过保存一个缓冲区来保存全部的数据，而是可以通过多次调用`update`方法，将数据输入给`Sm3`对象，在数据全都输入完之后，最后调用`digest`方法得到全部数据的SM3哈希值。下面的代码片段展示了这一用法。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Sm3
 >>> sm3 = Sm3()
 >>> sm3.update(b"Hello ")
 >>> sm3.update(b"world!")
@@ -347,8 +354,8 @@ sm3.update(b"Hello world!");
 
 注意，SM3算法也支持生成空数据的哈希值，因此下面的代码片段也是合法的。
 
-```java
->>> from gmssl import *
+```python
+>>> from gmssl import Sm3
 >>> sm3 = Sm3()
 >>> dgst = sm3.digest()
 ```
@@ -358,7 +365,7 @@ GmSSL-Python其他类的`update`方法通常也都提供了这种形式的接口
 如果应用要计算多组数据的不同SM3哈希值，可以通过`reset`方法重置`Sm3`对象的状态，然后可以再次调用`update`和`digest`方法计算新一组数据的哈希值。这样只需要一个`Sm3`对象就可以完成多组哈希值的计算。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Sm3
 >>> sm3 = Sm3()
 >>> sm3.update(b"abc")
 >>> dgst1 = sm3.digest()
@@ -398,11 +405,14 @@ HMAC-SM3算法可以看作是带密钥的SM3算法，因此在生成`Sm3Hmac`对
 下面的例子显示了如何用HMAC-SM3生成消息`abc`的MAC值。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Sm3Hmac, rand_bytes
+>>> from gmssl import SM3_HMAC_MIN_KEY_SIZE
+>>>
 >>> key = rand_bytes(SM3_HMAC_MIN_KEY_SIZE)
 >>> sm3_hmac = Sm3Hmac(key)
 >>> sm3_hmac.update(b'abc')
->>> sm3_hmac.generate_mac().hex()
+>>> mac = sm3_hmac.generate_mac()
+>>> print(mac.hex())
 ```
 
 `Sm3Hmac`也通过`update`方法来提供输入消息，应用可以多次调用`update`。
@@ -439,12 +449,15 @@ sm3_pbkdf2(passwd, salt, iterator, keylen)
 下面的例子展示了如何从口令字符串导出一个密钥。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import sm3_pbkdf2, rand_bytes
+>>> from gmssl import SM3_PBKDF2_DEFAULT_SALT_SIZE, SM3_PBKDF2_MIN_ITER
+>>>
 >>> passwd = "Password"
 >>> salt = rand_bytes(SM3_PBKDF2_DEFAULT_SALT_SIZE)
 >>> iterator = SM3_PBKDF2_MIN_ITER
 >>> keylen = 32
->>> sm3_pbkdf2(passwd, salt, iterator, keylen).hex()
+>>> key = sm3_pbkdf2(passwd, salt, iterator, keylen)
+>>> print(key.hex())
 ```
 
 ### SM4分组密码
@@ -471,13 +484,19 @@ gmssl.Sm4(key, encrypt)
 下面的例子展示SM4分组加密
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Sm4, rand_bytes
+>>> from gmssl import SM4_KEY_SIZE, SM4_BLOCK_SIZE, DO_ENCRYPT, DO_DECRYPT
+>>>
 >>> key = rand_bytes(SM4_KEY_SIZE)
 >>> plaintext = rand_bytes(SM4_BLOCK_SIZE)
+>>>
 >>> sm4_enc = Sm4(key, DO_ENCRYPT)
 >>> ciphertext = sm4_enc.encrypt(plaintext)
+>>>
 >>> sm4_dec = Sm4(key, DO_DECRYPT)
 >>> decrypted = sm4_dec.encrypt(ciphertext)
+>>>
+>>> assert decrypted == plaintext
 ```
 
 多次调用`Sm4`的分组加密解密功能可以实现ECB模式，由于ECB模式在消息加密应用场景中并不安全，因此GmSSL中没有提供ECB模式。如果应用需要开发SM4的其他加密模式，也可以基于`Sm4`类来开发这些模式。
@@ -510,16 +529,24 @@ gmssl.Sm4Cbc(key, iv, encrypt)
 下面的例子显示了采用SM4-CBC加密和解密的过程。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Sm4Cbc, rand_bytes
+>>> from gmssl import SM4_KEY_SIZE, SM4_CBC_IV_SIZE, DO_ENCRYPT, DO_DECRYPT
+>>>
 >>> key = rand_bytes(SM4_KEY_SIZE)
 >>> iv = rand_bytes(SM4_CBC_IV_SIZE)
->>> plaintext = b'abc'
+>>> plaintext = b'This is a test message.'
+>>>
+>>> # Encrypt
 >>> sm4_enc = Sm4Cbc(key, iv, DO_ENCRYPT)
 >>> ciphertext = sm4_enc.update(plaintext)
 >>> ciphertext += sm4_enc.finish()
+>>>
+>>> # Decrypt
 >>> sm4_dec = Sm4Cbc(key, iv, DO_DECRYPT)
 >>> decrypted = sm4_dec.update(ciphertext)
 >>> decrypted += sm4_dec.finish()
+>>>
+>>> assert decrypted == plaintext
 ```
 
 ### SM4-CTR加密模式
@@ -575,18 +602,26 @@ GCM模式和CBC、CTR、HMAC不同之处还在于可选的IV长度和MAC长度�
 下面例子展示SM4-GCM加密和解密的过程。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Sm4Gcm, rand_bytes
+>>> from gmssl import SM4_KEY_SIZE, SM4_GCM_DEFAULT_IV_SIZE, SM4_GCM_DEFAULT_TAG_SIZE, DO_ENCRYPT, DO_DECRYPT
+>>>
 >>> key = rand_bytes(SM4_KEY_SIZE)
 >>> iv = rand_bytes(SM4_GCM_DEFAULT_IV_SIZE)
 >>> aad = b'Additional auth-data'
->>> plaintext = b'abc'
+>>> plaintext = b'This is a test message.'
 >>> taglen = SM4_GCM_DEFAULT_TAG_SIZE
+>>>
+>>> # Encrypt
 >>> sm4_enc = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
 >>> ciphertext = sm4_enc.update(plaintext)
 >>> ciphertext += sm4_enc.finish()
+>>>
+>>> # Decrypt
 >>> sm4_dec = Sm4Gcm(key, iv, aad, taglen, DO_DECRYPT)
 >>> decrypted = sm4_dec.update(ciphertext)
 >>> decrypted += sm4_dec.finish()
+>>>
+>>> assert decrypted == plaintext
 ```
 
 通过上面的例子可以看出，SM4-GCM加密模式中可以通过指定了一个不需要加密的字段`aad`，注意`aad`是不会在`update`中输出的。由于GCM模式输出个外的完整性标签，因此`update`和`finish`输出的总密文长度会比总的输入明文长度多`taglen`个字节。
@@ -622,15 +657,24 @@ gmssl.Zuc(key, iv)
 下面的例子展示了`Zuc`的加密和解密过程。
 
 ```python
->>> from gmssl import *
+>>> from gmssl import Zuc, rand_bytes
+>>> from gmssl import ZUC_KEY_SIZE, ZUC_IV_SIZE
+>>>
+>>> key = rand_bytes(ZUC_KEY_SIZE)
 >>> iv = rand_bytes(ZUC_IV_SIZE)
->>> plaintext = b'abc'
+>>> plaintext = b'This is a test message.'
+>>>
+>>> # Encrypt
 >>> zuc_enc = Zuc(key, iv)
 >>> ciphertext = zuc_enc.update(plaintext)
 >>> ciphertext += zuc_enc.finish()
+>>>
+>>> # Decrypt
 >>> zuc_dec = Zuc(key, iv)
 >>> decrypted = zuc_dec.update(ciphertext)
 >>> decrypted += zuc_dec.finish()
+>>>
+>>> assert decrypted == plaintext
 ```
 
 ### SM2
@@ -675,42 +719,21 @@ gmssl.Sm2Key()
 下面的代码片段展示了`Sm2Key`密钥对和导出为加密的PEM私钥文件：
 
 ```python
->>> sm2 = Sm2Key()
->>> sm2.generate_key()
+>>> from gmssl import Sm2Key
 >>>
->>> sm2.export_encrypted_private_key_info_pem('sm2.pem', 'password')
+>>> # Generate key pair
+>>> sm2_key = Sm2Key()
+>>> sm2_key.generate_key()
+>>>
+>>> # Export and import encrypted private key
+>>> sm2_key.export_encrypted_private_key_info_pem('sm2.pem', 'password')
 >>> private_key = Sm2Key()
 >>> private_key.import_encrypted_private_key_info_pem('sm2.pem', 'password')
-```
-
-用文本编辑器打开`sm2.pem`文件可以看到如下内容
-
-```
------BEGIN ENCRYPTED PRIVATE KEY-----
-MIIBBjBhBgkqhkiG9w0BBQ0wVDA0BgkqhkiG9w0BBQwwJwQQaADudE4Ycenuoth4
-ZqcewgIDAQAAAgEQMAsGCSqBHM9VAYMRAjAcBggqgRzPVQFoAgQQ9aUmOaXn0mZD
-7xhBdd+FlQSBoKc0GG7US2SsmQIrppPNQeyDFpG8xthNI6G4R/YbSPJCvSMJ/9y3
-LQ/jrdUumuKevgg9miAcjbKndm7HC07lMYUk1ZXlaEG/1awER4RJsRvZ64GlBQOV
-D7jbu93mSs9t3SDt4TniDua5WyXo5Y8S6DjkkUD5epHRzYZ4uFFC/8pTeehK7X+S
-p2b6CndfB6H4LrvCGuRnjX4l5Q5AgfWDmWU=
------END ENCRYPTED PRIVATE KEY-----
-```
-
-下面的代码片段展示了`Sm2Key`导出为PEM公钥文件，这是一个标准的PKCS #8 EncryptPrivateKeyInfo类型并且PEM编码的私钥文件格式，`openssl pkeyutil`命令行工具也默认采用这个格式的私钥，但是由于GmSSL在私钥文件中采用SM4-CBC、HMAC-SM3组合加密了SM2的私钥，因此对于默认使用3DES的`openssl`等工具可能无法解密这个私钥（即使这个工具包含SM2算法的实现）。
-
-```python
->>> sm2.export_public_key_info_pem('sm2pub.pem')
+>>>
+>>> # Export and import public key
+>>> sm2_key.export_public_key_info_pem('sm2pub.pem')
 >>> public_key = Sm2Key()
 >>> public_key.import_public_key_info_pem('sm2pub.pem')
-```
-
-用文本编辑器打开`sm2pub.pem`文件可以看到如下内容
-
-```
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE5djp+Gw/Wdg9JwVwYDiQn1AocezI
-C2qT54fqJBNWevCNru8ENwj4t/52Yf50LF5+fMlcoWPbfm/TcCgYPb49jw==
------END PUBLIC KEY-----
 ```
 
 由于公钥文件是不加密的，因此这个公钥可以被支持SM2的第三方工具、库打开和访问。
@@ -720,22 +743,36 @@ C2qT54fqJBNWevCNru8ENwj4t/52Yf50LF5+fMlcoWPbfm/TcCgYPb49jw==
 其中`compute_z`是由公钥和用户的字符串ID值计算出一个称为“Z值”的哈希值，用于对消息的签名。由于`Sm2Signature`类中提供了SM2消息签名的完整功能，因此这个`compute_z`方法只是用于实验验证。
 
 ```python
+>>> from gmssl import SM2_DEFAULT_ID
+>>>
 >>> z = public_key.compute_z(SM2_DEFAULT_ID)
+>>> print(z.hex())
 ```
 
 类`Sm2Key`的`sign`和`verify`方法实现了SM2签名的底层功能，这两个方法不支持对数据或消息的签名，只能实现对SM3哈希值的签名和验证，并没有实现SM2签名的完整功能。应用需要保证调用时提供的`dgst`参数的字节序列长度为32。只有密码协议的底层开发者才需要调用`compute_z`、`sign`、`verify`这几个底层方法。
 
 ```python
+>>> from gmssl import Sm3
+>>>
+>>> sm3 = Sm3()
+>>> sm3.update(b'This is a test message.')
 >>> dgst = sm3.digest()
+>>>
 >>> sig = private_key.sign(dgst)
 >>> ret = public_key.verify(dgst, sig)
+>>> assert ret is True
 ```
 
 类`Sm2Key`的`encrypt`和`decrypt`方法实现了SM2加密和解密功能。注意，虽然SM2标准中没有限制加密消息的长度，但是公钥加密应该主要用于加密较短的对称密钥、主密钥等密钥数据，因此GmSSL库中限制了SM2加密消息的最大长度。应用在调用`encrypt`时，需要保证输入的明文长度不超过`SM2_MAX_PLAINTEXT_SIZE `的限制。如果需要加密引用层的消息，应该首先生成对称密钥，用SM4-GCM加密消息，再用SM2加密对称密钥。
 
 ```python
+>>> from gmssl import rand_bytes
+>>>
+>>> plaintext = rand_bytes(32)
 >>> ciphertext = public_key.encrypt(plaintext)
 >>> decrypted = private_key.decrypt(ciphertext)
+>>>
+>>> assert decrypted == plaintext
 ```
 
 类`Sm2Signatue`提供了对任意长消息的签名、验签功能。
@@ -762,13 +799,21 @@ gmssl.Sm2Signatue(sm2_key, signer_id = SM2_DEFAULT_ID, sign = DO_SIGN)
 在生成`Sm2Signature`对象时，不仅需要提供`Sm2Key`，还需要提供签名方的字符串ID，以满足SM2签名的标准。如果提供的`Sm2Key`来自于导入的公钥，那么这个`Sm2Signature`对象只能进行签名验证操作，即在构造时`DO_SIGN = False`，并且只能调用`verify`方法，不能调用`sign`方法。
 
 ```python
-signer = Sm2Signature(private_key, SM2_DEFAULT_ID, DO_SIGN)
-signer.update(b'abc')
-sig2 = signer.sign()
-
-verifier = Sm2Signature(public_key, SM2_DEFAULT_ID, DO_VERIFY)
-verifier.update(b'abc')
-ret = verifier.verify(sig2)
+>>> from gmssl import Sm2Signature, Sm2Key, SM2_DEFAULT_ID, DO_SIGN, DO_VERIFY
+>>>
+>>> # Assume private_key and public_key are loaded Sm2Key objects
+>>>
+>>> # Sign
+>>> signer = Sm2Signature(private_key, SM2_DEFAULT_ID, DO_SIGN)
+>>> signer.update(b'This is a test message.')
+>>> signature = signer.sign()
+>>>
+>>> # Verify
+>>> verifier = Sm2Signature(public_key, SM2_DEFAULT_ID, DO_VERIFY)
+>>> verifier.update(b'This is a test message.')
+>>> ret = verifier.verify(signature)
+>>>
+>>> assert ret is True
 ```
 
 不管是`Sm2Key`的`sign`还是`Sm2Signature`的`sign`方法输出的都是DER编码的签名值。这个签名值的第一个字节总是`0x30`，并且长度是可变的，常见的长度包括70字节、71字节、72字节，也可能短于70字节。一些SM2的实现不能输出DER编码的签名，只能输出固定64字节长度的签名值。可以通过签名值的长度以及首字节的值来判断SM2签名值的格式。
@@ -800,67 +845,19 @@ Sm2Certificate的方法：
 
 在这些格式中最常用的格式是本文的PEM格式，这也是`Sm2Certificate`类默认支持的证书格式。下面这个例子中就是一个证书的PEM文件内容，可以看到内容是由文本构成的，并且总是以`-----BEGIN CERTIFICATE-----`一行作为开头，以`-----END CERTIFICATE-----`一行作为结尾。PEM格式的好处是很容易用文本编辑器打开来，容易作为文本被复制、传输，一个文本文件中可以依次写入多个证书，从而在一个文件中包含多个证书或证书链。因此PEM格式也是CA签发生成证书使用的最主流的格式。由于PEM文件中头尾之间的文本就是证书二进制DER数据的BASE64编码，因此PEM文件也很容易和二进制证书进行手动或自动的互相转换。
 
-```
+```pem
 -----BEGIN CERTIFICATE-----
 MIIBszCCAVegAwIBAgIIaeL+wBcKxnswDAYIKoEcz1UBg3UFADAuMQswCQYDVQQG
 EwJDTjEOMAwGA1UECgwFTlJDQUMxDzANBgNVBAMMBlJPT1RDQTAeFw0xMjA3MTQw
-MzExNTlaFw00MjA3MDcwMzExNTlaMC4xCzAJBgNVBAYTAkNOMQ4wDAYDVQQKDAVO
-UkNBQzEPMA0GA1UEAwwGUk9PVENBMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE
-MPCca6pmgcchsTf2UnBeL9rtp4nw+itk1Kzrmbnqo05lUwkwlWK+4OIrtFdAqnRT
-V7Q9v1htkv42TsIutzd126NdMFswHwYDVR0jBBgwFoAUTDKxl9kzG8SmBcHG5Yti
-W/CXdlgwDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAQYwHQYDVR0OBBYEFEwysZfZ
-MxvEpgXBxuWLYlvwl3ZYMAwGCCqBHM9VAYN1BQADSAAwRQIgG1bSLeOXp3oB8H7b
-53W+CKOPl2PknmWEq/lMhtn25HkCIQDaHDgWxWFtnCrBjH16/W3Ezn7/U/Vjo5xI
+...
 pDoiVhsLwg==
 -----END CERTIFICATE-----
 ```
 
-通过`gmssl certparse`命令可以打印这个证书的内容
+通过`gmssl certparse`命令可以打印这个证书的内容：
 
-```python
-$ gmssl certparse -in ROOTCA.pemCertificate
-    tbsCertificate
-        version: v3 (2)
-        serialNumber: 69E2FEC0170AC67B
-        signature
-            algorithm: sm2sign-with-sm3
-            parameters: NULL
-        issuer
-            countryName: CN
-            organizationName: NRCAC
-            commonName: ROOTCA
-        validity
-            notBefore: Sat Jul 14 11:11:59 2012
-            notAfter: Mon Jul  7 11:11:59 2042
-        subject
-            countryName: CN
-            organizationName: NRCAC
-            commonName: ROOTCA
-        subjectPulbicKeyInfo
-            algorithm
-                algorithm: ecPublicKey
-                namedCurve: sm2p256v1
-            subjectPublicKey
-                ECPoint: 0430F09C6BAA6681C721B137F652705E2FDAEDA789F0FA2B64D4ACEB99B9EAA34E655309309562BEE0E22BB45740AA745357B43DBF586D92FE364EC22EB73775DB
-        extensions
-            Extension
-                extnID: AuthorityKeyIdentifier (2.5.29.35)
-                AuthorityKeyIdentifier
-                    keyIdentifier: 4C32B197D9331BC4A605C1C6E58B625BF0977658
-            Extension
-                extnID: BasicConstraints (2.5.29.19)
-                BasicConstraints
-                    cA: true
-            Extension
-                extnID: KeyUsage (2.5.29.15)
-                KeyUsage: keyCertSign,cRLSign
-            Extension
-                extnID: SubjectKeyIdentifier (2.5.29.14)
-                SubjectKeyIdentifier: 4C32B197D9331BC4A605C1C6E58B625BF0977658
-    signatureAlgorithm
-        algorithm: sm2sign-with-sm3
-        parameters: NULL
-    signatureValue: 304502201B56D22DE397A77A01F07EDBE775BE08A38F9763E49E6584ABF94C86D9F6E479022100DA1C3816C5616D9C2AC18C7D7AFD6DC4CE7EFF53F563A39C48A43A22561B0BC2
+```bash
+$ gmssl certparse -in ROOTCA.pem
 ```
 
 可以看到一个证书的主要内容是包含证书持有者信息的tbsCertificate字段，以及权威机构对tbsCertificate字段的签名算法signatureAlgorithm和签名值signatureValue。因为这个证书是SM2证书，因此其中的签名算法是`sm2sign-with-sm3`，签名值是`0x30`开头的DER编码的可变长度签名值。
@@ -940,31 +937,32 @@ gmssl.Sm9EncKey()
 下面的例子中给出了SM9加密方案的主密钥生成、用户密钥导出、加密、解密的整个过程。
 
 ```python
-master_key = Sm9EncMasterKey()
-master_key.generate_master_key()
-print("SM9 master key generated")
-
-master_key.export_encrypted_master_key_info_pem('enc_msk.pem', 'password')
-master_key.export_public_master_key_pem('enc_mpk.pem')
-print("Export master key and public master key")
-
-# Encrypt
-master_pub = Sm9EncMasterKey()
-master_pub.import_public_master_key_pem('enc_mpk.pem')
-
-plaintext = rand_bytes(SM4_KEY_SIZE + SM3_HMAC_MIN_KEY_SIZE)
-
-receiver_id = 'Alice'
-
-ciphertext = master_pub.encrypt(plaintext, receiver_id)
-
-# Decrypt
-master = Sm9EncMasterKey()
-master.import_encrypted_master_key_info_pem('enc_msk.pem', 'password')
-
-receiver_key = master.extract_key(receiver_id)
-
-decrypted = receiver_key.decrypt(ciphertext)
+>>> from gmssl import Sm9EncMasterKey, rand_bytes
+>>> from gmssl import SM4_KEY_SIZE, SM3_HMAC_MIN_KEY_SIZE
+>>>
+>>> # Master key generation
+>>> master_key = Sm9EncMasterKey()
+>>> master_key.generate_master_key()
+>>>
+>>> master_key.export_encrypted_master_key_info_pem('enc_msk.pem', 'password')
+>>> master_key.export_public_master_key_pem('enc_mpk.pem')
+>>>
+>>> # Encrypt
+>>> master_pub = Sm9EncMasterKey()
+>>> master_pub.import_public_master_key_pem('enc_mpk.pem')
+>>>
+>>> plaintext = rand_bytes(SM4_KEY_SIZE + SM3_HMAC_MIN_KEY_SIZE)
+>>> receiver_id = 'Alice'
+>>> ciphertext = master_pub.encrypt(plaintext, receiver_id)
+>>>
+>>> # Decrypt
+>>> master = Sm9EncMasterKey()
+>>> master.import_encrypted_master_key_info_pem('enc_msk.pem', 'password')
+>>>
+>>> receiver_key = master.extract_key(receiver_id)
+>>> decrypted = receiver_key.decrypt(ciphertext)
+>>>
+>>> assert decrypted == plaintext
 ```
 
 SM9签名功能由`Sm9SignMasterKey`、`Sm9SignKey`和`Sm9Signature`几个类实现，前两者在接口上和SM9加密非常类似，只是这两个类不直接提供签名、验签的功能。
@@ -1009,34 +1007,36 @@ gmssl.Sm9Signature(sign = DO_SIGN)
 下面的例子展示了SM9签名的主密钥生成、用户私钥生成、签名、验证的过程。
 
 ```python
-master_key = Sm9SignMasterKey()
-master_key.generate_master_key()
-print("SM9 master key generated")
-
-master_key.export_encrypted_master_key_info_pem('sign_msk.pem', 'password')
-master_key.export_public_master_key_pem('sign_mpk.pem')
-print("Export master key and public master key")
-
-
-master = Sm9SignMasterKey()
-master.import_encrypted_master_key_info_pem('sign_msk.pem', 'password')
-
-signer_id = 'Alice'
-key = master.extract_key(signer_id)
-
-message = "Message to be signed"
-
-sign = Sm9Signature(DO_SIGN)
-sign.update(message.encode('utf-8'))
-sig = sign.sign(key)
-
-
-master_pub = Sm9SignMasterKey()
-master_pub.import_public_master_key_pem('sign_mpk.pem')
-
-verify = Sm9Signature(DO_VERIFY)
-verify.update(message.encode('utf-8'))
-ret = verify.verify(sig, master_pub, signer_id)
+>>> from gmssl import Sm9SignMasterKey, Sm9Signature, DO_SIGN, DO_VERIFY
+>>>
+>>> # Master key generation
+>>> master_key = Sm9SignMasterKey()
+>>> master_key.generate_master_key()
+>>>
+>>> master_key.export_encrypted_master_key_info_pem('sign_msk.pem', 'password')
+>>> master_key.export_public_master_key_pem('sign_mpk.pem')
+>>>
+>>> # Sign
+>>> master = Sm9SignMasterKey()
+>>> master.import_encrypted_master_key_info_pem('sign_msk.pem', 'password')
+>>>
+>>> signer_id = 'Alice'
+>>> key = master.extract_key(signer_id)
+>>> message = b"Message to be signed"
+>>>
+>>> sign = Sm9Signature(DO_SIGN)
+>>> sign.update(message)
+>>> sig = sign.sign(key)
+>>>
+>>> # Verify
+>>> master_pub = Sm9SignMasterKey()
+>>> master_pub.import_public_master_key_pem('sign_mpk.pem')
+>>>
+>>> verify = Sm9Signature(DO_VERIFY)
+>>> verify.update(message)
+>>> ret = verify.verify(sig, master_pub, signer_id)
+>>>
+>>> assert ret is True
 ```
 
 ## 许可证
