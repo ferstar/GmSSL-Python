@@ -21,6 +21,7 @@ from gmssl import (
     Sm3,
     Sm3Hmac,
     Sm4Cbc,
+    Sm4Gcm,
     Sm9EncMasterKey,
     Zuc,
     rand_bytes,
@@ -143,6 +144,28 @@ def test_sm4_cbc_thread_safety():
         results = [future.result() for future in as_completed(futures)]
 
     # All results should be identical to plaintext
+    assert all(result == plaintext for result in results)
+
+
+def test_sm4_gcm_one_shot_thread_safety():
+    """
+    Test that the one-shot Sm4Gcm class methods are thread-safe.
+    """
+    num_threads = 20
+    key = b"1234567890123456"
+    iv = b"123456789012"
+    aad = b"aad data"
+    plaintext = b"This is a test message for one-shot GCM thread safety."
+
+    def encrypt_decrypt_task():
+        ciphertext = Sm4Gcm.encrypt(key, iv, aad, plaintext)
+        decrypted = Sm4Gcm.decrypt(key, iv, aad, ciphertext)
+        return decrypted
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(encrypt_decrypt_task) for _ in range(num_threads)]
+        results = [future.result() for future in as_completed(futures)]
+
     assert all(result == plaintext for result in results)
 
 

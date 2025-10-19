@@ -16,6 +16,7 @@ from ctypes import Structure, byref, c_size_t, c_uint8, c_uint32, c_uint64, crea
 
 from gmssl._constants import (
     _SM4_NUM_ROUNDS,
+    DO_DECRYPT,
     DO_ENCRYPT,
     SM4_BLOCK_SIZE,
     SM4_GCM_DEFAULT_TAG_SIZE,
@@ -196,20 +197,33 @@ class Sm4Gcm(Structure):
     """
     SM4-GCM (Galois/Counter Mode) authenticated encryption.
 
-    WARNING: This class is NOT thread-safe due to underlying GmSSL library
-    implementation. If you need to use SM4-GCM in a multi-threaded environment,
-    you must protect each instance with a lock (threading.Lock).
+    This class provides two modes of operation:
 
-    Example:
-        # Single-threaded usage (safe)
-        sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
-        ciphertext = sm4_gcm.update(plaintext) + sm4_gcm.finish()
+    1. Stateless, Thread-Safe API (Recommended):
+       Use the `Sm4Gcm.encrypt()` and `Sm4Gcm.decrypt()` class methods for
+       one-shot encryption/decryption. These methods are simple, efficient,
+       and thread-safe.
 
-        # Multi-threaded usage (requires lock)
-        lock = threading.Lock()
-        with lock:
-            sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
-            ciphertext = sm4_gcm.update(plaintext) + sm4_gcm.finish()
+       Example:
+           ciphertext = Sm4Gcm.encrypt(key, iv, aad, plaintext)
+           decrypted = Sm4Gcm.decrypt(key, iv, aad, ciphertext)
+
+    2. Stateful, Streaming API (Advanced):
+       For encrypting/decrypting large data streams, you can create an
+       instance of `Sm4Gcm` and use the `update()` and `finish()` methods.
+
+       WARNING: The stateful API is NOT thread-safe. If you need to use a
+       single instance in a multi-threaded environment, you MUST protect the
+       entire sequence of operations (from `__init__` to `finish`) with a
+       `threading.Lock`.
+
+       Example (with external lock):
+           lock = threading.Lock()
+           with lock:
+               sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
+               ciphertext = sm4_gcm.update(chunk1)
+               ciphertext += sm4_gcm.update(chunk2)
+               ciphertext += sm4_gcm.finish()
     """
 
     _fields_ = [
@@ -274,3 +288,23 @@ class Sm4Gcm(Structure):
         else:
             checked.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen))
         return outbuf[: outlen.value]
+
+    @classmethod
+    def encrypt(cls, key, iv, aad, plaintext, taglen=SM4_GCM_DEFAULT_TAG_SIZE):
+        """
+        Encrypts and authenticates data in a single, thread-safe operation.
+        """
+        enc = cls(key, iv, aad, taglen, DO_ENCRYPT)
+        ciphertext = enc.update(plaintext)
+        ciphertext += enc.finish()
+        return ciphertext
+
+    @classmethod
+    def decrypt(cls, key, iv, aad, ciphertext, taglen=SM4_GCM_DEFAULT_TAG_SIZE):
+        """
+        Decrypts and verifies data in a single, thread-safe operation.
+        """
+        dec = cls(key, iv, aad, taglen, DO_DECRYPT)
+        decrypted = dec.update(ciphertext)
+        decrypted += dec.finish()
+        return decrypted

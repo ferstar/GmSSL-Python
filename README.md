@@ -576,55 +576,48 @@ SM4-CTR在加密和解密时计算过程一样，因此在初始化时不需要�
 
 ### SM4-GCM认证加密模式
 
-SM4的GCM模式是一种认证加密模式，和CBC、CTR等加密模式的主要区别在于，GCM模式的加密过程默认在密文最后添加完整性标签，也就是MAC标签，因此应用在采用SM4-GCM模式时，没有必要再计算并添加SM3-HMAC了。在有的应用场景中，比如对消息报文进行加密，对于消息头部的一段数据（报头字段）只需要做完整性保护，不需要加密，SM4-GCM支持这种场景。在`Sm4Gcm`类的`init`方法中，除了`key`、`iv`参数，还可以提供`aad`字节数字用于提供不需要加密的消息头部数据。
+`Sm4Gcm` 提供了两种 API 模式：
 
-模块`gmssl`中包含如下Sm4Gcm的常量：
+#### 推荐用法：无状态 API (线程安全)
 
-* `SM4_GCM_MIN_IV_SIZE`
-* `SM4_GCM_MAX_IV_SIZE`
-* `SM4_GCM_DEFAULT_IV_SIZE`
-* `SM4_GCM_DEFAULT_TAG_SIZE`
-* `SM4_GCM_MAX_TAG_SIZE `
-
-`Sm4Gcm`类实现了基本的SM4-CBC分组密码算法，类`Sm4Gcm`的对象是由构造函数生成的。
-
-```
-gmssl.Sm4Gcm(key, iv, aad, taglen = SM4_GCM_DEFAULT_TAG_SIZE, encrypt = True)
-```
-
-对象Sm4Gcm的方法：
-
-* `Sm4Gcm.update(data : bytes)`
-* `Sm4Gcm.finish() -> bytes`
-
-GCM模式和CBC、CTR、HMAC不同之处还在于可选的IV长度和MAC长度，其中IV的长度必须在`SM4_GCM_MIN_IV_SIZE`和`SM4_GCM_MAX_IV_SIZE`之间，长度为`SM4_GCM_DEFAULT_IV_SIZE`有最佳的计算效率。MAC的长度也是可选的，通过`init`方法中的`taglen`设定，其长度不应低于8字节，不应长于`SM4_GCM_DEFAULT_TAG_SIZE = 16`字节。
-
-下面例子展示SM4-GCM加密和解密的过程。
+对于大多数场景，推荐使用 `encrypt` 和 `decrypt` 类方法。它们是无状态的，并且可以安全地在多线程环境中使用。
 
 ```python
->>> from gmssl import Sm4Gcm, rand_bytes
->>> from gmssl import SM4_KEY_SIZE, SM4_GCM_DEFAULT_IV_SIZE, SM4_GCM_DEFAULT_TAG_SIZE, DO_ENCRYPT, DO_DECRYPT
+>>> from gmssl import Sm4Gcm, rand_bytes, NativeError
+>>> from gmssl import SM4_KEY_SIZE, SM4_GCM_DEFAULT_IV_SIZE
 >>>
 >>> key = rand_bytes(SM4_KEY_SIZE)
 >>> iv = rand_bytes(SM4_GCM_DEFAULT_IV_SIZE)
 >>> aad = b'Additional auth-data'
 >>> plaintext = b'This is a test message.'
->>> taglen = SM4_GCM_DEFAULT_TAG_SIZE
 >>>
->>> # Encrypt
->>> sm4_enc = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
->>> ciphertext = sm4_enc.update(plaintext)
->>> ciphertext += sm4_enc.finish()
+>>> # 一行代码完成加密
+>>> ciphertext = Sm4Gcm.encrypt(key, iv, aad, plaintext)
 >>>
->>> # Decrypt
->>> sm4_dec = Sm4Gcm(key, iv, aad, taglen, DO_DECRYPT)
->>> decrypted = sm4_dec.update(ciphertext)
->>> decrypted += sm4_dec.finish()
->>>
->>> assert decrypted == plaintext
+>>> # 一行代码完成解密和验证
+>>> try:
+...     decrypted = Sm4Gcm.decrypt(key, iv, aad, ciphertext)
+...     assert decrypted == plaintext
+... except NativeError:
+...     print("Authentication failed!")
 ```
 
-通过上面的例子可以看出，SM4-GCM加密模式中可以通过指定了一个不需要加密的字段`aad`，注意`aad`是不会在`update`中输出的。由于GCM模式输出个外的完整性标签，因此`update`和`finish`输出的总密文长度会比总的输入明文长度多`taglen`个字节。
+#### 高级用法：流式 API (非线程安全)
+
+对于需要处理大数据流的场景，可以创建 `Sm4Gcm` 实例并使用 `update` 和 `finish` 方法。
+
+⚠️ **重要**: 这种流式处理的实例**不是线程安全的**。如果需要在多线程环境中使用同一个实例，您**必须**在外部使用 `threading.Lock` 来保护从 `__init__` 到 `finish` 的整个操作序列。
+
+```python
+>>> # 伪代码示例
+>>> sm4_enc = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
+>>> for chunk in read_large_file_in_chunks():
+...     encrypted_chunk = sm4_enc.update(chunk)
+...     write_to_output(encrypted_chunk)
+>>> last_chunk = sm4_enc.finish()
+>>> write_to_output(last_chunk)
+
+通过上面的例子可以看出，SM4-GCM加密模式中可以通过指定了一个不需要加密的字段`aad`，注意`aad`是不会在`update`中输出的。由于GCM模式输出额外的完整性标签，因此`update`和`finish`输出的总密文长度会比总的输入明文长度多`taglen`个字节。
 
 ### Zuc序列密码
 
