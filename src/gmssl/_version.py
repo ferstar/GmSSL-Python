@@ -20,7 +20,7 @@ from gmssl._lib import gmssl
 # Version Information
 # =============================================================================
 
-GMSSL_PYTHON_VERSION = "2.2.2"
+GMSSL_PYTHON_VERSION = "2.2.3"
 
 
 def gmssl_library_version_num():
