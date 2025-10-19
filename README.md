@@ -220,27 +220,11 @@ uv run pytest tests/test_thread_safety.py -v       # 线程安全测试
 - ✅ pygmssl缺失测试: 13 个（性能、压力、边界测试）
 - ✅ 线程安全测试: 10 个（多线程并发测试）
 
-### 线程安全说明
+### 线程安全
 
-⚠️ **重要**: `Sm4Gcm` 类由于底层 GmSSL 库实现限制，**不是线程安全的**。
+`gmssl-python` 中的所有密码算法类（包括 `Sm2Key`, `Sm3`, `Sm4`, `Sm4Gcm`, `Sm9EncMasterKey`, `Zuc` 等）**都是线程安全的**。
 
-如果需要在多线程环境中使用 SM4-GCM，必须使用锁保护：
-
-```python
-import threading
-from gmssl import Sm4Gcm, DO_ENCRYPT
-
-lock = threading.Lock()
-
-def encrypt_with_gcm(key, iv, aad, plaintext):
-    with lock:  # 必须使用锁保护
-        sm4_gcm = Sm4Gcm(key, iv, aad, 16, DO_ENCRYPT)
-        ciphertext = sm4_gcm.update(plaintext)
-        ciphertext += sm4_gcm.finish()
-        return ciphertext
-```
-
-其他所有密码算法（SM2, SM3, SM4-CBC/CTR, SM9, ZUC 等）都是线程安全的，可以在多线程环境中直接使用。
+每个类实例内部都包含一个线程锁，确保在多线程环境中可以安全地创建和使用。用户无需在应用程序级别添加额外的锁。
 
 ### 修改代码
 

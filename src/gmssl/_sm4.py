@@ -12,7 +12,16 @@ Internal module for SM4 block cipher and its modes of operation.
 This module should not be imported directly by users.
 """
 
-from ctypes import Structure, byref, c_size_t, c_uint8, c_uint32, c_uint64, create_string_buffer
+import threading
+from ctypes import (
+    Structure,
+    byref,
+    c_size_t,
+    c_uint8,
+    c_uint32,
+    c_uint64,
+    create_string_buffer,
+)
 
 from gmssl._constants import (
     _SM4_NUM_ROUNDS,
@@ -196,20 +205,8 @@ class Sm4Gcm(Structure):
     """
     SM4-GCM (Galois/Counter Mode) authenticated encryption.
 
-    WARNING: This class is NOT thread-safe due to underlying GmSSL library
-    implementation. If you need to use SM4-GCM in a multi-threaded environment,
-    you must protect each instance with a lock (threading.Lock).
-
-    Example:
-        # Single-threaded usage (safe)
-        sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
-        ciphertext = sm4_gcm.update(plaintext) + sm4_gcm.finish()
-
-        # Multi-threaded usage (requires lock)
-        lock = threading.Lock()
-        with lock:
-            sm4_gcm = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
-            ciphertext = sm4_gcm.update(plaintext) + sm4_gcm.finish()
+    This class is thread-safe. A single instance can be safely used by multiple
+    threads for encryption or decryption operations.
     """
 
     _fields_ = [
@@ -223,54 +220,59 @@ class Sm4Gcm(Structure):
     ]
 
     def __init__(self, key, iv, aad, taglen=SM4_GCM_DEFAULT_TAG_SIZE, encrypt=True):
+        self._lock = threading.Lock()
         if len(key) != SM4_KEY_SIZE:
             raise ValueError("Invalid key length")
         if len(iv) < SM4_GCM_MIN_IV_SIZE or len(iv) > SM4_GCM_MAX_IV_SIZE:
             raise ValueError("Invalid IV size")
         if taglen < 1 or taglen > SM4_GCM_MAX_TAG_SIZE:
             raise ValueError("Invalid Tag length")
-        if encrypt == DO_ENCRYPT:
-            checked.sm4_gcm_encrypt_init(
-                byref(self),
-                key,
-                c_size_t(len(key)),
-                iv,
-                c_size_t(len(iv)),
-                aad,
-                c_size_t(len(aad)),
-                c_size_t(taglen),
-            )
-        else:
-            checked.sm4_gcm_decrypt_init(
-                byref(self),
-                key,
-                c_size_t(len(key)),
-                iv,
-                c_size_t(len(iv)),
-                aad,
-                c_size_t(len(aad)),
-                c_size_t(taglen),
-            )
+
+        with self._lock:
+            if encrypt == DO_ENCRYPT:
+                checked.sm4_gcm_encrypt_init(
+                    byref(self),
+                    key,
+                    c_size_t(len(key)),
+                    iv,
+                    c_size_t(len(iv)),
+                    aad,
+                    c_size_t(len(aad)),
+                    c_size_t(taglen),
+                )
+            else:
+                checked.sm4_gcm_decrypt_init(
+                    byref(self),
+                    key,
+                    c_size_t(len(key)),
+                    iv,
+                    c_size_t(len(iv)),
+                    aad,
+                    c_size_t(len(aad)),
+                    c_size_t(taglen),
+                )
         self._encrypt = encrypt
 
     def update(self, data):
         outbuf = create_string_buffer(len(data) + SM4_BLOCK_SIZE)
         outlen = c_size_t()
-        if self._encrypt == DO_ENCRYPT:
-            checked.sm4_gcm_encrypt_update(
-                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-            )
-        else:
-            checked.sm4_gcm_decrypt_update(
-                byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
-            )
+        with self._lock:
+            if self._encrypt == DO_ENCRYPT:
+                checked.sm4_gcm_encrypt_update(
+                    byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+                )
+            else:
+                checked.sm4_gcm_decrypt_update(
+                    byref(self), data, c_size_t(len(data)), outbuf, byref(outlen)
+                )
         return outbuf[0 : outlen.value]
 
     def finish(self):
         outbuf = create_string_buffer(SM4_BLOCK_SIZE + SM4_GCM_MAX_TAG_SIZE)
         outlen = c_size_t()
-        if self._encrypt == DO_ENCRYPT:
-            checked.sm4_gcm_encrypt_finish(byref(self), outbuf, byref(outlen))
-        else:
-            checked.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen))
+        with self._lock:
+            if self._encrypt == DO_ENCRYPT:
+                checked.sm4_gcm_encrypt_finish(byref(self), outbuf, byref(outlen))
+            else:
+                checked.sm4_gcm_decrypt_finish(byref(self), outbuf, byref(outlen))
         return outbuf[: outlen.value]
