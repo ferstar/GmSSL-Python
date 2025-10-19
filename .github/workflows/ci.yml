@@ -103,62 +103,45 @@ jobs:
 
   test-aarch64:
     name: Test on ARM64/aarch64 (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     strategy:
       fail-fast: false
       matrix:
         # Test on a subset of Python versions to balance coverage and CI time
-        include:
-          - python-version: '3.8'
-            python-package: python3.8
-          - python-version: '3.12'
-            python-package: python3.12
+        # Using native ARM64 runners for 20-30x performance improvement vs QEMU emulation
+        python-version: ['3.8', '3.12', '3.14']
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run tests on aarch64
-        uses: uraimo/run-on-arch-action@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          arch: aarch64
-          distro: ubuntu_latest
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
-          # Install dependencies and run tests
-          install: |
-            set -e
-            apt-get update -q -y
-            # Install software-properties-common for add-apt-repository
-            apt-get install -q -y software-properties-common git
-            # Add deadsnakes PPA for multiple Python versions
-            add-apt-repository -y ppa:deadsnakes/ppa
-            apt-get update -q -y
-            # Install specific Python version and related packages
-            apt-get install -q -y ${{ matrix.python-package }} ${{ matrix.python-package }}-venv ${{ matrix.python-package }}-dev
-            # Get pip for the specific Python version
-            curl -sS https://bootstrap.pypa.io/get-pip.py | ${{ matrix.python-package }} -
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
-          run: |
-            set -e
-            # Create virtual environment with specific Python version
-            ${{ matrix.python-package }} -m venv /tmp/venv
-            . /tmp/venv/bin/activate
+      - name: Install dependencies
+        run: |
+          uv pip install --system pytest pytest-cov
 
-            # Verify Python version
-            python --version
+      - name: Install package in development mode
+        run: |
+          uv pip install --system -e .
 
-            # Install test dependencies
-            pip install pytest pytest-cov
+      - name: Verify installation
+        run: |
+          python -c "from gmssl import GMSSL_LIBRARY_VERSION, GMSSL_PYTHON_VERSION; print(f'GmSSL Library: {GMSSL_LIBRARY_VERSION}'); print(f'Python Binding: {GMSSL_PYTHON_VERSION}')"
 
-            # Install package
-            pip install -e .
-
-            # Verify installation
-            python -c "from gmssl import GMSSL_LIBRARY_VERSION, GMSSL_PYTHON_VERSION; print(f'GmSSL Library: {GMSSL_LIBRARY_VERSION}'); print(f'Python Binding: {GMSSL_PYTHON_VERSION}')"
-
-            # Run tests
-            pytest tests/ -v --cov=src/gmssl --cov-report=term
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=src/gmssl --cov-report=term
 
   build:
     name: Build Package
