@@ -293,6 +293,33 @@ class Sm4Gcm(Structure):
     def encrypt(cls, key, iv, aad, plaintext, taglen=SM4_GCM_DEFAULT_TAG_SIZE):
         """
         Encrypts and authenticates data in a single, thread-safe operation.
+
+        This method provides a simple, stateless API for SM4-GCM encryption.
+        Each call creates a new instance internally, making it safe to use
+        concurrently across multiple threads without external synchronization.
+
+        Args:
+            key (bytes): Encryption key, must be exactly 16 bytes (SM4_KEY_SIZE)
+            iv (bytes): Initialization vector, length must be between
+                        SM4_GCM_MIN_IV_SIZE and SM4_GCM_MAX_IV_SIZE
+            aad (bytes): Additional authenticated data (can be empty bytes)
+            plaintext (bytes): Data to encrypt
+            taglen (int): Authentication tag length in bytes, must be between
+                          1 and SM4_GCM_MAX_TAG_SIZE (default: 16)
+
+        Returns:
+            bytes: Ciphertext with authentication tag appended (length =
+                   len(plaintext) + taglen)
+
+        Raises:
+            ValueError: If key, iv, or taglen have invalid lengths
+            NativeError: If underlying GmSSL library operation fails
+
+        Example:
+            >>> from gmssl import Sm4Gcm, rand_bytes, SM4_KEY_SIZE, SM4_GCM_DEFAULT_IV_SIZE
+            >>> key = rand_bytes(SM4_KEY_SIZE)
+            >>> iv = rand_bytes(SM4_GCM_DEFAULT_IV_SIZE)
+            >>> ciphertext = Sm4Gcm.encrypt(key, iv, b'', b'Hello, World!')
         """
         enc = cls(key, iv, aad, taglen, DO_ENCRYPT)
         ciphertext = enc.update(plaintext)
@@ -303,6 +330,45 @@ class Sm4Gcm(Structure):
     def decrypt(cls, key, iv, aad, ciphertext, taglen=SM4_GCM_DEFAULT_TAG_SIZE):
         """
         Decrypts and verifies data in a single, thread-safe operation.
+
+        This method provides a simple, stateless API for SM4-GCM decryption and
+        authentication verification. Each call creates a new instance internally,
+        making it safe to use concurrently across multiple threads without
+        external synchronization.
+
+        The authentication tag is verified during decryption. If the tag is
+        invalid (e.g., due to tampering or corruption), a NativeError is raised.
+
+        Args:
+            key (bytes): Decryption key, must be exactly 16 bytes (SM4_KEY_SIZE),
+                         same as used for encryption
+            iv (bytes): Initialization vector, length must be between
+                        SM4_GCM_MIN_IV_SIZE and SM4_GCM_MAX_IV_SIZE,
+                        same as used for encryption
+            aad (bytes): Additional authenticated data, must match the AAD used
+                         during encryption (can be empty bytes)
+            ciphertext (bytes): Encrypted data with authentication tag appended
+                                (as returned by encrypt())
+            taglen (int): Authentication tag length in bytes, must match the
+                          taglen used during encryption (default: 16)
+
+        Returns:
+            bytes: Decrypted plaintext (length = len(ciphertext) - taglen)
+
+        Raises:
+            ValueError: If key, iv, or taglen have invalid lengths
+            NativeError: If authentication fails (tag verification failed) or
+                         if underlying GmSSL library operation fails
+
+        Example:
+            >>> from gmssl import Sm4Gcm, rand_bytes, SM4_KEY_SIZE, SM4_GCM_DEFAULT_IV_SIZE, NativeError
+            >>> key = rand_bytes(SM4_KEY_SIZE)
+            >>> iv = rand_bytes(SM4_GCM_DEFAULT_IV_SIZE)
+            >>> ciphertext = Sm4Gcm.encrypt(key, iv, b'', b'Hello, World!')
+            >>> try:
+            ...     plaintext = Sm4Gcm.decrypt(key, iv, b'', ciphertext)
+            ... except NativeError:
+            ...     print("Authentication failed!")
         """
         dec = cls(key, iv, aad, taglen, DO_DECRYPT)
         decrypted = dec.update(ciphertext)
