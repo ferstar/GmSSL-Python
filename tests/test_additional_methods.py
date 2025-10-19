@@ -23,7 +23,9 @@ from gmssl import (
     DO_SIGN,
     DO_VERIFY,
     SM9_MAX_PLAINTEXT_SIZE,
+    NativeError,
     Sm2Certificate,
+    Sm4Gcm,
     Sm9EncKey,
     Sm9EncMasterKey,
     Sm9Signature,
@@ -474,3 +476,44 @@ def test_sm9_sign_full_workflow_with_key_export():
         verify = Sm9Signature(DO_VERIFY)
         verify.update(b"Message to sign")
         assert verify.verify(sig, master_pub, "Bob")
+
+
+# =============================================================================
+# SM4-GCM One-Shot API Tests
+# =============================================================================
+
+
+def test_sm4_gcm_one_shot_api():
+    """
+    Test the one-shot, thread-safe Sm4Gcm.encrypt and Sm4Gcm.decrypt methods.
+    """
+    key = b"1234567890123456"
+    iv = b"123456789012"
+    aad = b"aad data"
+    plaintext = b"This is a test message for one-shot GCM."
+
+    # Encrypt
+    ciphertext = Sm4Gcm.encrypt(key, iv, aad, plaintext)
+
+    # Decrypt and verify
+    decrypted = Sm4Gcm.decrypt(key, iv, aad, ciphertext)
+    assert decrypted == plaintext
+
+
+def test_sm4_gcm_one_shot_api_auth_failure():
+    """
+    Test that one-shot Sm4Gcm.decrypt raises an error on authentication failure.
+    """
+    key = b"1234567890123456"
+    iv = b"123456789012"
+    aad = b"aad data"
+    plaintext = b"This is a test message."
+
+    ciphertext = Sm4Gcm.encrypt(key, iv, aad, plaintext)
+
+    # Tamper with the ciphertext (flip the first byte)
+    tampered_ciphertext = bytes([ciphertext[0] ^ 0xFF]) + ciphertext[1:]
+
+    # Decryption should fail with a NativeError
+    with pytest.raises(NativeError, match="sm4_gcm_decrypt_finish failed"):
+        Sm4Gcm.decrypt(key, iv, aad, tampered_ciphertext)

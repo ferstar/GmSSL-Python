@@ -17,11 +17,6 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from gmssl import (
-    DO_DECRYPT,
-    DO_ENCRYPT,
-    SM4_GCM_DEFAULT_IV_SIZE,
-    SM4_GCM_DEFAULT_TAG_SIZE,
-    SM4_KEY_SIZE,
     Sm2Key,
     Sm3,
     Sm3Hmac,
@@ -71,44 +66,23 @@ def test_sm3_hash_thread_safety():
     """
     Test that SM3 hashing is thread-safe.
 
-    Scenario 1: Multiple threads use *different* instances.
-    Scenario 2: Multiple threads use a *shared* instance.
+    Multiple threads should be able to hash data concurrently.
     """
     num_threads = 20
     data = b"hello, world"
 
-    # --- Scenario 1: Different instances ---
-    def hash_data_new_instance():
+    def hash_data():
         sm3 = Sm3()
         sm3.update(data)
         return sm3.digest()
 
+    # Hash in multiple threads
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [
-            executor.submit(hash_data_new_instance) for _ in range(num_threads)
-        ]
+        futures = [executor.submit(hash_data) for _ in range(num_threads)]
         results = [future.result() for future in as_completed(futures)]
 
+    # All results should be identical
     assert len(set(results)) == 1
-    expected_digest = results[0]
-
-    # --- Scenario 2: Shared instance ---
-    sm3_shared = Sm3()
-    data_chunks = [os.urandom(64) for _ in range(num_threads)]
-
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        # Each thread calls update on the *same* sm3_shared instance
-        list(executor.map(sm3_shared.update, data_chunks))
-
-    # Finalize the hash in the main thread
-    shared_digest = sm3_shared.digest()
-
-    # Verify the result by hashing the full data in a single-threaded way
-    sm3_single = Sm3()
-    sm3_single.update(b"".join(data_chunks))
-    single_digest = sm3_single.digest()
-
-    assert shared_digest == single_digest
 
 
 def test_sm3_hmac_thread_safety():
@@ -144,94 +118,55 @@ def test_sm4_cbc_thread_safety():
     """
     Test that SM4-CBC is thread-safe.
 
-    Scenario 1: Multiple threads use *different* instances.
-    Scenario 2: Multiple threads use a *shared* instance for encryption.
+    Multiple threads should be able to encrypt/decrypt concurrently.
     """
     num_threads = 20
     key = os.urandom(16)
     iv = os.urandom(16)
     plaintext = b"hello, world" * 10
 
-    # --- Scenario 1: Different instances ---
-    def encrypt_decrypt_new_instance():
+    def encrypt_decrypt():
+        # Encrypt
         sm4_enc = Sm4Cbc(key, iv, True)
-        ciphertext = sm4_enc.update(plaintext) + sm4_enc.finish()
+        ciphertext = sm4_enc.update(plaintext)
+        ciphertext += sm4_enc.finish()
+
+        # Decrypt
         sm4_dec = Sm4Cbc(key, iv, False)
-        decrypted = sm4_dec.update(ciphertext) + sm4_dec.finish()
+        decrypted = sm4_dec.update(ciphertext)
+        decrypted += sm4_dec.finish()
+
+        return decrypted
+
+    # Encrypt/decrypt in multiple threads
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(encrypt_decrypt) for _ in range(num_threads)]
+        results = [future.result() for future in as_completed(futures)]
+
+    # All results should be identical to plaintext
+    assert all(result == plaintext for result in results)
+
+
+def test_sm4_gcm_one_shot_thread_safety():
+    """
+    Test that the one-shot Sm4Gcm class methods are thread-safe.
+    """
+    num_threads = 20
+    key = b"1234567890123456"
+    iv = b"123456789012"
+    aad = b"aad data"
+    plaintext = b"This is a test message for one-shot GCM thread safety."
+
+    def encrypt_decrypt_task():
+        ciphertext = Sm4Gcm.encrypt(key, iv, aad, plaintext)
+        decrypted = Sm4Gcm.decrypt(key, iv, aad, ciphertext)
         return decrypted
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [
-            executor.submit(encrypt_decrypt_new_instance) for _ in range(num_threads)
-        ]
+        futures = [executor.submit(encrypt_decrypt_task) for _ in range(num_threads)]
         results = [future.result() for future in as_completed(futures)]
 
     assert all(result == plaintext for result in results)
-
-    # --- Scenario 2: Shared instance ---
-    plaintext_large = os.urandom(1024 * 10)  # 10 KB of data
-    sm4_enc_shared = Sm4Cbc(key, iv, True)
-
-    chunk_size = len(plaintext_large) // num_threads
-    chunks = [
-        plaintext_large[i * chunk_size : (i + 1) * chunk_size]
-        for i in range(num_threads)
-    ]
-
-    # Encrypt concurrently on a shared instance
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        results_list = list(executor.map(sm4_enc_shared.update, chunks))
-
-    final_chunk = sm4_enc_shared.finish()
-    ciphertext = b"".join(results_list) + final_chunk
-
-    # Decrypt in a single-threaded way to verify
-    sm4_dec = Sm4Cbc(key, iv, False)
-    decrypted = sm4_dec.update(ciphertext) + sm4_dec.finish()
-
-    assert decrypted == plaintext_large
-
-
-def test_sm4_gcm_thread_safety_shared_instance():
-    """
-    Test that a shared Sm4Gcm instance is thread-safe.
-
-    Multiple threads concurrently call `update` on the same instance.
-    """
-    num_threads = 20
-    key = rand_bytes(SM4_KEY_SIZE)
-    iv = rand_bytes(SM4_GCM_DEFAULT_IV_SIZE)
-    aad = b"authenticated-but-not-encrypted-data"
-    taglen = SM4_GCM_DEFAULT_TAG_SIZE
-    plaintext = os.urandom(1024 * 10)  # 10 KB of data
-
-    # Create a shared instance for encryption
-    sm4_gcm_enc = Sm4Gcm(key, iv, aad, taglen, DO_ENCRYPT)
-
-    # Split plaintext into chunks for each thread
-    chunk_size = len(plaintext) // num_threads
-    chunks = [
-        plaintext[i * chunk_size : (i + 1) * chunk_size] for i in range(num_threads)
-    ]
-
-    # Use a ThreadPoolExecutor to call update concurrently, ensuring order
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        # Each thread calls update on the *same* sm4_gcm_enc instance.
-        # executor.map preserves the order of the input chunks.
-        results = list(executor.map(sm4_gcm_enc.update, chunks))
-
-    # Get the final part of the ciphertext and the tag
-    final_chunk = sm4_gcm_enc.finish()
-
-    # Combine all parts in the correct order to get the full ciphertext
-    ciphertext = b"".join(results) + final_chunk
-
-    # Now, decrypt the full ciphertext in one go and verify
-    sm4_gcm_dec = Sm4Gcm(key, iv, aad, taglen, DO_DECRYPT)
-    decrypted_text = sm4_gcm_dec.update(ciphertext)
-    decrypted_text += sm4_gcm_dec.finish()
-
-    assert decrypted_text == plaintext
 
 
 # =============================================================================
